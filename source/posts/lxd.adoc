@@ -1,0 +1,131 @@
+= LXD on Alpine
+Chloe Kudryavtsev <toast@toast.cafe>
+v1.0, September 24, 2019: First publication
+:page-tags: sys
+
+LXD is a fairly convenient linux container runtime.
+However, the author (Canonical) are primarily focused on systems with systemd and glibc.
+This means that there are some gotchas when it comes to running it in different environments.
+Alpine Linux uses OpenRC and musl, effectively being diametrically opposite to the expected environment.
+This oftentimes causes issues and confusion as users run into unexpected problems.
+This post will attempt to outline in a semi-linear fashion various issues you may run into, followed by providing a general set of recommendations for running LXD hosts.
+
+== The "Guide"
+=== Installation
+First, we must install Alpine.
+You can find some help doing that over at its https://docs.alpinelinux.org/[official documentation].
+As such, the process of installing an alpine release is omitted.
+
+At the time of writing (before the release of Alpine 3.11, at least) LXD is only available in the testing repository.
+As such, first, let's move to edge and add our new repository.
+Edit `/etc/apk/repositories` to look like so:
+[source]
+----
+http://dl-cdn.alpinelinux.org/alpine/edge/main
+http://dl-cdn.alpinelinux.org/alpine/edge/community
+http://dl-cdn.alpinelinux.org/alpine/edge/testing
+----
+Then run `apk upgrade` and `apk add lxd`.
+Once that's done, we can start and enable lxd: `rc-update add lxd && rc-service lxd start`.
+Then, we run `lxd init` selecting all the defaults.
+
+=== UID/GID Allocation
+Everything seems ok, so let's launch an alpine container: `lxc launch images:alpine/edge`.
+Suddenly, we see an error: `Error: Failed container creation: Create container: Create LXC container: LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported`.
+
+UID/GID allocation is done using the `/etc/subuid` and `/etc/subgid` files.
+The format is relatively simple: `user:start:size`.
+It describes what UIDs and GIDs a user is allowed to impersonate.
+Let's start by giving some to root.
+`root:100000:65536` goes into both files and restart LXD (`rc-service lxd restart`).
+
+=== CGroups
+Let's try and launch an image again: `lxc launch images:alpine/edge`.
+The container fails to start.
+The error this time is `Failed to run: /usr/sbin/lxd forkstart imagename /var/lib/lxd/containers /var/log/lxd/imagename/lxc.conf`.
+There is a useful suggestion to run `lxc info --show-log local:imagename` for more information.
+When we run it, we get some more information:
+[source]
+----
+lxc imagename 20190924234952.775 WARN     initutils - initutils.c:setproctitle:341 - Invalid argument - Failed to set cmdline
+lxc imagename 20190924234952.814 ERROR    cgroup - cgroups/cgroup.c:cgroup_init:54 - Failed to initialize cgroup driver
+lxc imagename 20190924234952.814 ERROR    start - start.c:lxc_init:920 - Failed to initialize cgroup driver
+lxc imagename 20190924234952.814 ERROR    start - start.c:__lxc_start:1988 - Failed to initialize container "imagename"
+lxc imagename 20190924234952.878 ERROR    lxccontainer - lxccontainer.c:wait_on_daemonized_start:864 - No such file or directory - Failed to receive the container state
+----
+
+What does "Failed to initialize cgroup driver" mean?
+LXD uses cgroups to impose container limitations within namespaces.
+Openrc does not create cgroups by default.
+Thankfully, at a surface level, this is relatively trivial to actually do, we simply need to enable and start the `cgroups` service: `rc-update add cgroups boot && rc-service cgroups start`.
+
+=== Limit Detection
+If we run a container now, it works!
+`lxc launch images:alpine/edge name`
+We can even log into it `lxc exec name ash`.
+Let's stop it and apply a resource limit.
+[source]
+----
+lxc stop name
+lxc config set name limits.memory 256MB
+lxc start name
+----
+Let's see what it looks like inside of `name` - let's run `lxc exec name -- free -m`.
+It shows the value of the host (in my case 487, as this is done in a vm for demonstration purposes).
+Perhaps this is a busybox limitation - let's install procps.
+`lxc exec name -- apk add procps && lxc exec name -- free -m`
+No changes.
+
+This is actually because the container is not aware of any limitations placed upon it, even though they do exist.
+This will apply to all other limits and usage (it also shows the host's memory usage).
+This can cause various issues in software that tries to query or play around with such resource availabilities (cgroups, mostly).
+Thankfully, this is simple to fix, we must simply run lxcfs - a project whose entire purpose is to help with this situation.
+[source]
+----
+lxc stop name
+rc-service lxd stop
+apk add lxcfs
+rc-update add lxcfs
+rc-service lxcfs start
+rc-service lxd start
+lxc start name
+----
+Thankfully, sometime around Alpine 3.10's release, the situation has gotten improved - cgmanager no longer fails on start.
+In case you run into a problem where `lxcfs` fails to start because of `cgmanager`, it is safe to edit the `lxcfs` init script to remove that dependency.
+
+We now see the correct max memory and usage when we run `lxc exec name -- free -m`.
+Note, however, that busybox does not know how to read this information, and will continue to show the incorrect information (`lxc exec name -- busybox free -m`).
+
+=== FD Limit
+You probably haven't ran into this yet, but at any point, you could have a fairly strange error that, at some point, reads "No file descriptors available".
+Linux defaults to a fairly low limit of file descriptors.
+Let's open up `/etc/rc.conf` and set `rc_ulimit` to `-n 1048576`.
+This will affect all openrc-spawned processes, including lxd.
+We do need to reboot afterwards though.
+
+=== Normal User
+Let's create a user to run lxd commands as.
+`adduser -h /home/user user`
+If we log in as `user` and run `lxc ls`, we get an error: `Error: Get http://unix.socket/1.0: dial unix /var/lib/lxd/unix.socket: connect: permission denied`.
+LXD's socket belongs to `root:root` by default.
+We needs to edit `/etc/conf.d/lxd` and add `--group lxd` to the options, and then add `user` to the `lxd` group via `adduser user lxd`.
+Since it's the LXD daemon running the containers, we do not need to add uid/gid maps to `user`.
+Everything should now work as expected.
+
+=== Outdated
+Here are a few issues that have been fixed since when I started working with LXD in Alpine:
+
+. Systemd-based containers had issues booting/rebooting/etc.
+. Systemd-based containers required a systemd-specific cgroup. You used to have to add/create it by hand (or a handwritten openrc script).
+
+== The Summary
+In short, here are the things you want to do to get lxd running well on a freshly installed Alpine system:
+
+. Install lxcfs and lxd (`apk add lxcfs lxd`)
+. Add `-n 1048576` to the value of `ulimit` in `/etc/rc.conf`.
+. Set uid/gid maps, recommended is `root:100000:65536` in `/etc/subuid` and `/etc/subgid`
+. Enable LXD (`rc-update add lxd`). LXD's service file uses `lxcfs` which in turn depends on `cgmanager` which depends on `cgroups`, so with all of those installed and working this should be sufficient
+. [OPTIONAL] Set up a normal user (`user` in this example) to run LXD commands.
+.. Create the user if not already made (`adduser -h /home/user user`)
+.. Add the user to the LXD group (`adduser user lxd`)
+.. Set LXD to give its socket appropriate permissions by adding `--group lxd` into the options variable in `/etc/conf.d/lxd`

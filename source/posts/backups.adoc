@@ -1,0 +1,127 @@
+= Backups: You're doing it wrong
+Chloe Kudryavtsev <toast@toast.cafe>
+v1.0, January 27, 2019: First publication
+:page-tags: sys
+
+Backups are an oft-discussed topic.
+It's also a topic a great many people seem to have many extremely strange ideas about.
+In this post, I'm going to go over common issues, and make recommendations.
+I will close it out by explaining my backup strategy.
+
+== You don't care about `/bin/cp`
+
+There are things on your system you want to back up.
+There are also things on your system you do *not* want to back up.
+Many people will talk about just tarballing `/`, or backing up "everything", in order to make restores faster.
+The reality of the situation is that this process has almost never actually expedited a restore.
+
+Under some (very limited) circumstances - same hardware, same goal software, maybe just a bad ram stick caused corruption - this can work.
+In all other cases, there are "gotchas".
+For instance - imagine a failed hard drive.
+You reformat it, drop the tarball in... only to find out that your fstab was using UUIDs and all that tiny bit of time you saved by "only having one thing to do when restoring" is suddenly gone as you diagnose an unexpected issue.
+
+Don't be afraid to set things up - only back up the things you truly want to keep.
+
+== You do not want UID/GID preserved
+
+Backups aren't just there for restoring things on the same machine.
+They're also for transferring (backup) data on demand.
+Consider, for example, a new SQL database being bootstrapped, or a migration, even.
+Being able to transfer that over from your existing backups (rather than have a dedicated process for that) is convenient.
+
+One way or another, you eventually WILL want to read the backup in an environment where the UID and GID of the content will not perfectly match.
+Do yourself a favor and stop caring about them in general.
+The limitation of that approach is that you can only back up things that are intended to belong to one user at a time.
+This leads us to...
+
+== Segment
+
+Don't be afraid to have your backups be in segments.
+There is no reason for `~/Workspace` to live in the same box as `~/.ssh`.
+People only really avoid doing that in two scenarios:
+
+[loweralpha]
+. Your backup utility sucks, making restoring several backups a painful experience.
+. It helps save space, because you can compress the entries together.
+
+Obviously, the solution to that first one is to use a better backup utility (stop using rsnapshot for the love of everything).
+
+== Relative paths
+
+Seeing as you might want to be restoring your backups to various locations (maybe not even the same system at all), you won't necessarily want them in the same location.
+Further, perhaps you just want to test how restoring works.
+This is much easier when the paths are relative to your current directory - you know where it's supposed to go, so you can always just go to that location before restoring.
+
+== Deduplicate and repeat
+
+Your data should be deduplicated, ideally using content-aware chunks.
+You don't really lose redundancy (that's what the backups are doing to begin with, and you can sync them all over).
+You gain lots of space.
+
+Once your data is deduplicated, it also becomes a lot less scary to create more backups.
+Like a lot more.
+
+Once you're deduplicating your data, you no longer need to compress it on the entrance phase - after all, you just have to store the one copy, more or less.
+Further, since deduplication requires some sort of "repository", it opens up the possibility of having the *repo* handle the compression as well.
+
+In order to optimize deduplication, as mentioned, you should minimize overheads and definitely avoid compression.
+The best way to do that is to...
+
+== Don't be afraid of loose data
+
+Many people are hesitant to back up singular files or "plain data".
+This might be related to the segmentation section.
+However, the ability to do so is of great importance!
+
+How do you optimally back up a database?
+Backing up its current binary storage seems silly, that might change.
+A common method is getting a "dump" of the SQL commands necessary to recreate it.
+But now you have a single file!
+Many stop there, and just keep a directory with some number of files, or maybe compress it.
+Ideally though, you pipe it directly into your backup utility, getting deduplication on the very content!
+
+This also eliminates a whole step in restoration / transfers - just pipe it out.
+
+== Encrypt!
+
+Many people will complain about encryption.
+It's too slow, it's too inconvenient, etc.
+The truth is that if encryption is too inconvenient, that's on your backup utility.
+What you definitely don't want is someone gaining access to `~/.ssh`, or that database backup.
+
+Sure, if all you have in is pictures of Mr. Fluffykins, being able to turn off encryption can seem convenient.
+But really - just keep it on, and definitely make sure it's at least available, without sucking.
+
+== What I do
+
+So we have some general advice now:
+
+* Allow loose files/data
+* Create many, common, deduplicated, separate backups, separated logically
+* Don't attribute users/groups
+* Encrypt it
+* Only backup things you want, and do so in relative terms
+
+You may have noticed a pattern: backups are not write-only media.
+Most of this advice talks about *reading* the contents.
+It is even desirable to read backups without any failures having occurred.
+So what exactly do *my* backups look like?
+
+I use `rdedup`, in combination with `tar` (avoid rdup at all costs it is insane and breaks half of the recommendations present here).
+My typical backup of a directory will look like so:
+
+[source, shell]
+----
+cd foo/
+tar -cf- bar/ | rdedup store bar-$(date +%y-%m-%d)
+----
+
+That's it!
+In case the data I want to back up is a single file, the `tar` can become a `cat`, or if it's loose data, I can just pipe it in directly.
+
+My `rdedup` repository is initialized with all defaults (as of currently, at version 3.1.1) - blake2b hashes (superior hashing algorithm), curve25519 pubkey encryption (superior pubkey algorithm), zstd compression (ideally I'd like lzip, but this is good enough), fastcdc chunking (somewhat content-aware).
+
+One nice advantage of `rdedup` is the use of pubkey encryption - you only need to specify the password for extraction, and it can be put into an environment variable in case you expect to be restoring many things.
+
+It doesn't care about things like files, UIDs, GIDs and such, leaving that to the data content - something that makes things much more tolerable.
+`tar` by default doesn't care about the location of the data, and when extracted as a normal user, the user extracting the data owns the files - making it a good enough fit, and easily available.

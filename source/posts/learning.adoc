@@ -1,0 +1,263 @@
+= Learning: Maybe
+Chloe Kudryavtsev <toast@toast.cafe>
+v1.0, May 24, 2019: First publication
+:page-tags: epistemology, philosophy
+
+Most people have, at some point, learned something.
+At least, I would hope so.
+However, most people also have trouble differentiating between things they've learned, and things that they believe they have learned.
+In this post, I'm going to go over a (short) history of modern learning theory (constructivism), pull in entirely unrelated works (logical empiricism, pragmatism, indoor ornithology), and talk about the nature of knowledge, learning, and understanding - spoilers: they are different things.
+
+Ultimately though, I'm doing this for my own amusement (for the alternative is to not write anything down at all).
+So I'm not going to actually quote things.
+You may (or may not) find some recommended reading at the end, though, if you're interested.
+
+== Constructivism
+Let's lay down some ground rules.
+
+* If a student wishn't to learn, no effort by the teacher will help.
+* All knowledge is internal to the learner - objects are not themselves knowledge.
+* Students do not come into class with a blank slate - they may have pre-existing ideas (that may be wrong).
+
+These are some of the core tenets of applied constructivism - the philosophy that claims to be all about the idea that the world and the mind are separate.
+
+Some of these seem to be non-contentious truisms.
+Surely, it is impossible to change someone's mind when they do not wish to change it.
+However, this theory is not as simple as it may seem, and its apparent simplicity is largely at fault for the current state of the educative process.
+
+The purpose of constructivism is to contradict objectivism - the idea that there is one truth, and it is the objective truth.
+The general teaching method of objectivism tends to be a teacher passing information directly from their mind (or textbook) into a student's mind.
+As such, constructivism takes the opposite approach - it suggests learning by doing.
+
+Certainly, most of those that have participated in official education processes in the last 40 or so years have experienced this to some degree.
+The rise and prevalence of "workshops" in educational contexts.
+Sometimes, students protest these measures, and attempt to locate older lecture contents.
+
+Constructivism, or rather constructivism's application within education, ultimately goes too far.
+In its attempt to avoid "transmissionism", it ignores cognitive loads within the learners.
+In its attempts to avoid assuming a blank slate, assumptions are made about how internal schemas are defeated.
+
+NOTE: in case more detail is required here, consider reading the likes of Agarwal 2003, diSessa 2006, Solomon 1994
+
+WARNING: Social Constructivism is a thing. However, I believe that they attempt to mend something that is fundamentally broken. It is important work to be aware of, but not the focus of the today's subject.
+
+== Logical Empiricism
+Let's lay down some ground rules:
+
+- The world is separate from the human mind.
+- We can make observations about the world.
+- We can use logic to deduce things about the world.
+- The above two are all we need to arrive at the Truth™.
+
+These are the core ideas of Logical Empiricism (cousin of pragmatism, children of logical positivism).
+
+It has many similarities to constructivism.
+Some of the statements seem like obvious truisms - of course we can use logic to make deductions about the world!
+However, things are not as simple as they may seem.
+
+Logical Empiricism has resulted in a child - the scientific method, the original version at least.
+However, once you start applying it (like within the scientific method), things start going wrong.
+By examining a specific flaw within Logical Empiricism, we can thus begin to comprehend some of the issues within constructivism.
+
+=== Indoor Ornithology
+Indoor Ornithology is a paradox that was proposed by Carl Hempel in the 1940s.
+This is the reason that inductive logic and intuition is effectively banned within science - but we're getting ahead of ourselves.
+You can read more about the paradox on your own, but let me summarize it like so:
+
+. I have a hypothesis that all ravens are black: if something is a raven, it then must be black.
+. A logically equivalent statement is: if something is not black, then it is not a raven.
+. My pet raven is black. I think this supports my hypothesis.
+. If my pet raven being black supports my hypothesis, so does my green apple being neither black nor a raven.
+
+Or, in short, the find of a non-black object supports the hypothesis that all ravens are black.
+This logical conclusion based on empirical observations suggests that one may perform a lot of ornithology (the study of birds) by never setting foot outside.
+
+This conclusion, while logically valid with the initial assumptions, seems outright preposterous.
+As such, there must be some problem with the source material.
+Where might it be?
+It seemed full of simple truths, after all.
+The general approach is to abandon inductive thought altogether, following Popper into falsifiability.
+This is an elegant solution, but leaves many questions, and is not particularly applicable to the thing we are trying to figure out.
+
+=== Epistemological Anarchy
+An alternative solution to the paradox is that of Paul Feyerabend, often known as epistemological anarchy.
+That is, the idea that any specific methodology will, by necessity, inhibit process.
+To Feyerabend, philosophy is little more than a neat way to organize one's thoughts post-factum.
+
+After all, there is no identifiable and fixed scientific method that is consistent with how most progress has been done.
+When asked to differentiate between mythology and science, there is no clear distinction.
+
+Scientific theories are generally constructed in ways that attempt to explain the entirety of the world through their perspective.
+However, every single attempt at such a "theory of everything" has failed.
+This is not to say that this is a useless endeavor, but simply that assuming a specific process or theorem to be complete is to inhibit future progress - where a better way has been found.
+
+[quote, Einstein]
+God does not play dice.
+
+Most, including Einstein later, will not contend that this was wrong.
+However, this shows us that, from the start, Einstein was operating under his own, internal, schemas of knowledge.
+If he had followed the method du jour, he would likely never have arrived at the conclusions he had arrived to.
+Certainly, if we throw out Einstein's schemas, due to them being full of inductive thinking, and tainted by religious thought, as is that of most humans, we throw out the discovery as well.
+After all - he had started off with his conclusion - figuring out "what made sense" - and proved it afterwards.
+
+=== So what about those ravens?
+What the raven paradox shows us is that the scientific method, and the concept of logical empiricism is not complete.
+This is fine and acceptable - after all, every single idea on earth likely has the same caveat applied to it.
+The trick is not to lock oneself into it, thus stopping further progress, but rather find the problem with it, and figure out how to work around it.
+This is both the blessing and the curse of Popper's solution - he works around the problem, sure, but does not allow for a framework in which the loss of inductive reasoning is also worked around.
+
+Ultimately, the method of arriving to an idea can and always will vary (controlling a stranger's thoughts is a quite complex affair).
+It is the defensibility of the individual precept that matters.
+
+== What does this have to do with constructionism?
+Constructionism poses itself as a "theory of everything" within knowledge.
+However, it clearly has problems.
+Social Constructivism, like falsifiability, attempts to fix this, but approaches differ (consider, for instance, p-prims).
+However, in their attempt to run away from transmissionism, constructivists have ultimately left the teacher behind - leaving the students to fend for their own.
+I postulate two things:
+
+. There will be no coherent "theory of everything" that will give rise to a perfect methodology of teaching.
++
+CAUTION: This is a 2-in-1 but they *must not* be taken separately.
+. Any attempt to standardize teaching by using any such theory will necessarily create problems.
+
+In case this seems weird (after all, in some of my other posts, I *appear* to suggest specific methodologies), keep in mind that suggesting them is not the same thing as dogmatically following them.
+There are things to learn from any given methodology, but one should never exclusively follow any single one.
+Attempts to do so are futile anyway - in truth, we get epistemological anarchy whether we want it or not, after all.
+
+To hammer that home, I'm going to propose my own theory of knowledge, learning, and a methodology of teaching.
+Remember, you shouldn't necessarily follow everything verbatim - analyze it critically and make your own decisions as to what to incorporate or not.
+
+== Knowledge
+Most people are familiar with the concept of knowing something.
+Perhaps you know a person.
+Perhaps you know that the sky is blue.
+Perhaps you know that the sun spins around the earth.
+Wait a moment.
+
+The nature of knowledge has long been debated (look into justified true beliefs (JTBs) sometime, it's quite funny).
+Even whether knowledge CAN be objective or not is a matter of question (see: objectivism vs constructivism).
+
+I think that the problematic situation at hand is that "knowledge" can actually refer to multiple concepts.
+There is seeming knowledge often known by another word - familiarity.
+And then there is knowledge, and internal schematic construct.
+
+Let us go back to the raven paradox.
+I believe the source of the paradox is that combined usage of the two, conflicting, meanings.
+From now on, for clarity, I will refer to them as "familiarity" and "predictability" respectively.
+Familiarity is rather self-explanatory, but let's go a bit deeper on predictability.
+Knowledge, in the internal schema sense, is a thoroughly pragmatist idea.
+The purpose of internal schema knowledge is to predict things within the objective word through the use of internal constructs - the mark of a good scientific theory.
+However, this does not necessarily make predictability superior to familiarity.
+
+Familiarity fails us in the raven paradox, because while we meet more and more black ravens, and certainly become more familiar with more ravens that are black, we do not gain any predictive power as to the color of the next raven.
+Meanwhile, predictability fails us within things with many variables, like interpersonal relationships.
+One may have strong predictive capabilities over the behavior of a rational agent, but only familiarity with said agent would allow one to assess and deal with unusual scenarios.
+
+Ultimately, both of these concepts directly oppose one-another and hide behind obvious truisms, same as objectivism versus constructionism.
+
+This is not to say that we should marry the two and be on with it.
+Certainly, predictability and familiarity are separate, and both useful, but neither speaks about the True state of things.
+We are thus back to the age-old question: how can we, as subjects, gain knowledge of reality?
+
+I propose the concept of understanding.
+While familiarity is determined by the amount of exposure and predictability is determined by its ability to predict real events, understanding is determined by the completeness of the internal schema.
+It is okay for understanding to be of limited familiarity - one does not need to dissect a frog to understand that it has a heart, and why.
+It is okay for understanding to be of limited predictability - it is, after all, impossible for a subject to subject themselves to the entirety of objective reality.
+However, as understanding grows, it will begin to also acheive greater predictability.
+
+In short, I propose that true knowledge (understanding) is about how complete, and how accurate (through a recursive process) each chain within, the internal schema of the world is.
+
+=== I'm confused and need an example.
+Let us, once again, consider the ravens.
+As we observe more and more black ravens, we become more familiar with the idea that ravens are black.
+We do not, however, gain the ability to predict that ravens are black.
+We can certainly try, however, and have a fairly good chance of success, and will thus have the illusion of predictability - the precise reason why understanding is more important.
+
+However, just by observing black ravens, we do not understand the reason behind their plumage.
+If one was able to trace out exactly why ravens evolved to have black plumage so commonly, one could also figure out potential ways under which this process would (if ever) fail.
+Unfortunately, I am not an ornithologist, and do not, in fact, know, why ravens are typically black.
+In short - I do not hold knowledge that all ravens are black, even if I may feel like I do thanks to my familiarity with that bird species.
+
+If I decoded their genome and found a specific one that says "feathers shall be black", then I would *know* why ravens are generally black.
+If this ended up being the reason, however, more questions would be raised:
+
+. Are there any circumstances under which this genetic coding would fail?
+. Why is it coded that way?
+
+In this sense, the process of acquiring knowledge (understanding) is never-ending.
+This directly mirrors the truism that a subject cannot ever truly comprehend the object.
+However, one can get ever so closer each time.
+
+== Learning
+Now that we've established what knowledge is (from now on, whenever I say knowledge, I will be referring to "understanding" as outlined above), we must determine how it may be gained.
+
+The obvious and intuitive answer is simple - you gain it by further completing your internal schemas.
+Once you have analyzed the feather genome, you might then go on to try to find reasons as to why it may have appeared.
+
+Here we face an obstacle though.
+How can you possibly verify that the conclusion you have just come to is correct?
+What do you do about a scenario under which you and a conversational partner have conflicting ideas of the same degree of completeness?
+It is tempting to then rely on predictability, or familiarity.
+However, I propose that the most defensible idea is the correct one.
+Defensibility referring to the ability to cope with the holes that remain (of which there will always be some), rather than the lack of such holes (for optimizing for the latter is generally called sophistry).
+
+When ideas clash, and weaknesses in both are being pointed out, one can generally decide for themselves which weaknesses are, well, weaker.
+Sometimes, the conclusion will be that both ideas are wrong, and not particularly useful.
+In further rare cases, the two shall be equivalent to an outside observer.
+However, in practice, in the vast majority of cases, the holes present in one shall be bigger, deeper, and full of worms.
+
+In essence, I propose a Socratic dialog/debate, within which the goal is to understand the opponent's position (do not forget - schemas do not necessarily need to represent reality - they may be arbitrary internally consistent constructs (an easy example of this is mathematics)).
+Once the opponent's position is understood, one may poke holes in any of the following:
+
+* The links between schema chains.
+* The schema entries themselves.
+* Logical conclusions based on the schema.
+
+The idea that is more defensible as a result is then considered superior, and should be adopted by both participants as the currently most appropriate state.
+
+Note, however, that this does not mean that the alternative schema needs to be thrown away.
+If there is anything that epistemological anarchy has taught us, it is that ideas, so long as they are internally consistent, can be valuable, regardless of their link to reality (see some of Feyerabend's later works, regarding potentially conflicting goals).
+Further, it is possible that the opposing idea simply was not sufficiently well formulated by the subject presenting it, or needed additional thought and growth to cover the currently present holes.
+
+Over time, the practitioner achieves progressively more comprehensive views of the world, and of those within it.
+This process also makes one more efficient when it comes to formulating and processing thoughts.
+Even if one does not concede the assumption that the most defensible idea is the closest one to objective reality, it is difficult to deny the advantages of this approach.
+
+Of course, this does not cleanly apply to teaching.
+
+== Teaching
+Let us now consider a teacher, practitioner of understanding, that wishes to enlighten their students.
+We will also introduce a time constrained - after all, if those are not present, one may simply begin by teaching the generic approach to perfecting one's internal schemas to the students.
+
+Let us have another quick overview of the two opposing approaches we've talked over before.
+Objectivism focuses on transferring knowledge from the teacher to the student, expecting (or enforcing) a blank slate in the receiver.
+Constructivism focuses on getting the student to experiment, and arrive at their own conclusions through logical empiricism.
+
+Both of these approaches fail to root their methodology within understanding of the process of learning (as outlined above), and thus follow their own views.
+
+I postulate that the first step towards helping someone learn something else is to truly, fully understand their current internal schemas.
+Once the viewpoint of the student is thoroughly understood, a decision can be made.
+
+One could engage in a typical Socratic dialog, proposing higher quality schemas, taking care to constantly reinforce any and all progress of the student in understanding the new schema.
+This is a similar approach to objectivism, and relies on some of the same factors, and thus obviously only works if the student is truly blank on the subject, or has ideas that are relatively close to the truth - otherwise, cognitive dissonance and resistance to change take over.
+
+Alternatively, one could, with their deep understanding of the position held by the student, shatter the foundations of their beliefs.
+This is often required when the internal schema of the student is wholly off the rails, and one has a time constraint that does not allow for the primary approach (which would be to teach the student to teach themselves).
+In this shaken-worldview state, the student is bound to be in high amounts of confusion.
+However, using this opportunity to perform blank-slate implantation is not only wrong, but also immoral.
+Instead, one should use this moment of lowered defenses to argue as to why the shown problems within their schemas are, in fact, problematic, and propose alternative solutions.
+With the moment of unbalance, resistance is ultimately lowered, and, although it may take more effort, adjusting the current state results in greater interference than attempting to impose a fully new one.
+
+You may notice that in both cases, the teacher plays a large role, despite the obvious truism that the student must be willing.
+This is because the student, even if willing consciously, is still human.
+Understanding the perspective of the student is thus required, not only to know what decision to make, and what holes to exploit, but also to help (in both cases) guide the student.
+
+In short, we are not really "learning the student", we learn as much from the student as the student learns from us, even if they do not realize it.
+Being in a position with (assumed) greater knowledge means we can apply direct and focused guidance to accelerate a process that, when done on one's own, would have taken significantly longer.
+We must assume that a willing student *will* eventually figure out that their schemas are incorrect.
+We simply accelerate the process.
+
+== Recommended Reading
+If I feel bored, I might put things here.
+The primary recommended reading is this post, though, of course.

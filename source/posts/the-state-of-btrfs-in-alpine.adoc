@@ -1,0 +1,200 @@
+= The State of Btrfs in Alpine: Boot Process Woes
+Chloe Kudryavtsev <toast@toast.cafe>
+v1.0, November 27, 2018: First Publication
+:page-tags: alpine, sys
+
+Alpine is a great distribution.
+However, likely due to a lack of people involved, it has some issues.
+Some packages remain "abandoned", or at least unpatched due to neglect, initscripts are many years out of date, useless patches remain in the tree.
+The most issues I've personally encountered though have been related to booting.
+The initrd, bootloaders, installer all seem to have more edge-cases than intended functionality.
+This post may be primarily about btrfs, since that's what I've used the most, and encountered the most issues with, but this applies to the ecosystem in general.
+
+== Bootloaders
+
+Alpine supports two bootloaders: grub and sys(ext)linux.
+Extlinux has many problems, one of which is lack of support for btrfs multi-device.
+There's more to extlinux than that, but it is far better-tested (despite both being in the main repo), likely because the core developers use it.
+Grub, however, is another story.
+
+=== Initrd detection
+
+For instance, grub, as it is at the time of writing, does not support Alpine's initramfs.
+It is incapable of detecting it.
+Let's take a look at an excerpt from alpine's `/etc/grub.d/10_linux` at the time of writing:
+
+[source, shell]
+----
+initrd=
+for i in "initrd.img-${version}" "initrd-${version}.img" "initrd-${version}.gz" \
+       "initrd-${version}" "initramfs-${version}.img" \
+       "initrd.img-${alt_version}" "initrd-${alt_version}.img" \
+       "initrd-${alt_version}" "initramfs-${alt_version}.img" \
+       "initramfs-genkernel-${version}" \
+       "initramfs-genkernel-${alt_version}" \
+       "initramfs-genkernel-${GENKERNEL_ARCH}-${version}" \
+       "initramfs-genkernel-${GENKERNEL_ARCH}-${alt_version}"; do
+if test -e "${dirname}/${i}" ; then
+  initrd="$i"
+  break
+fi
+done
+----
+
+Okay, so grub lists all the possible filenames of the initrd...
+What does alpine's initrd name itself?
+
+[source, shell]
+----
+file /boot/init* # <1>
+----
+<1> /boot/initramfs-virt: gzip compressed data, max compression, from Unix, original size 14504628
+
+Alpine's initramfs is thus called `initramfs-$version`.
+If you read the above list carefully, you may notice - that's not an option that is deemed valid.
+
+But surely, this is because alpine modifies that file (it does indeed source something custom, see the next section)!
+Here's the same section from upstream grub:
+
+[source, shell]
+----
+initrd_real=
+for i in "initrd.img-${version}" "initrd-${version}.img" "initrd-${version}.gz" \
+   "initrd-${version}" "initramfs-${version}.img" \
+   "initrd.img-${alt_version}" "initrd-${alt_version}.img" \
+   "initrd-${alt_version}" "initramfs-${alt_version}.img" \
+   "initramfs-genkernel-${version}" \
+   "initramfs-genkernel-${alt_version}" \
+   "initramfs-genkernel-${GENKERNEL_ARCH}-${version}" \
+   "initramfs-genkernel-${GENKERNEL_ARCH}-${alt_version}"; do
+if test -e "${dirname}/${i}" ; then
+  initrd_real="${i}"
+  break
+fi
+done
+----
+
+NOTE:
+I'm going to be filing this against upstream grub relatively soon.
+I mostly haven't done it yet because I don't have everything set up for interacting with GNU quite yet.
+
+=== Grub multi-device
+
+Why is this relevant?
+
+Grub has to decide how to specify `root=` to the kernel's command line.
+It does this by guessing the device.
+It tries to use UUID, but will fail under a few conditions... let's look at the affected lines from upstream git:
+
+[source, shell]
+----
+# btrfs may reside on multiple devices. We cannot pass them as value of root= parameter
+# and mounting btrfs requires user space scanning, so force UUID in this case.
+if ( [ "x${GRUB_DEVICE_UUID}" = "x" ] && [ "x${GRUB_DEVICE_PARTUUID}" = "x" ] ) \
+    || ( [ "x${GRUB_DISABLE_LINUX_UUID}" = "xtrue" ] \
+    && [ "x${GRUB_DISABLE_LINUX_PARTUUID}" = "xtrue" ] ) \
+    || ( ! test -e "/dev/disk/by-uuid/${GRUB_DEVICE_UUID}" \
+    && ! test -e "/dev/disk/by-partuuid/${GRUB_DEVICE_PARTUUID}" ) \
+    || ( test -e "${GRUB_DEVICE}" && uses_abstraction "${GRUB_DEVICE}" lvm ); then
+  LINUX_ROOT_DEVICE=${GRUB_DEVICE}
+elif [ "x${GRUB_DEVICE_UUID}" = "x" ] \
+    || [ "x${GRUB_DISABLE_LINUX_UUID}" = "xtrue" ]; then
+  LINUX_ROOT_DEVICE=PARTUUID=${GRUB_DEVICE_PARTUUID}
+else
+  LINUX_ROOT_DEVICE=UUID=${GRUB_DEVICE_UUID}
+fi
+# ... later
+if test -z "${initramfs}" && test -z "${initrd_real}" ; then
+  # "UUID=" and "ZFS=" magic is parsed by initrd or initramfs.  Since there's
+  # no initrd or builtin initramfs, it can't work here.
+  if [ "x${GRUB_DEVICE_PARTUUID}" = "x" ] \
+  || [ "x${GRUB_DISABLE_LINUX_PARTUUID}" = "xtrue" ]; then
+  linux_root_device_thisversion=${GRUB_DEVICE}
+  else
+  linux_root_device_thisversion=PARTUUID=${GRUB_DEVICE_PARTUUID}
+  fi
+fi
+----
+
+This is a bit more complicated, so let's break it down.
+This effectively sets a few requirements for using the PARTUUID or UUID of a device to determine the correct `root=`.
+The problematic parts here as such:
+
+. if there is no `/dev/disk/by-*`, it will use `$GRUB_DEVICE`, and will not use UUID.
+. If initrd has not been detected, it will refuse to use UUID, because it's assumed it's initramfs magic (which is correct, but it doesn't go to PARTUUID for reasons).
+
+The issue here is that `/dev/disk/by-*` is entirely irrelevant, and does not exist with mdev (which alpine uses by default).
+And since initrd is not detected (as per above), we never get to use UUID.
+
+As such, in order to use `grub` (required for multidevice btrfs boot), one must start and enable udev, as well as modify grub scripts to detect initrd.
+
+=== Boot-time modules
+
+Further, since grub seems to be used in the .iso to provide EFI (I'm honestly not sure why, given that as far as I'm aware, syslinux has that support), it can often fail spectacularly (e.g getting dropped into a grub prompt on trying to boot on an EFI system).
+The init system also decides what modules to load (by hand) before doing root juggling based on a file named `/etc/update-extlinux.conf`, which is used with grub as well.
+When I was setting up a sys install on btrfs-raid1, the modules in question defaulted to ext3, and not btrfs.
+I believe it's meant to be detected during install, but for some reason it decided not to do that.
+As such, this is also needed.
+
+=== Ultimate problem
+
+The ultimate issue is that these problems are "magic" - they appear out of nowhere, and are difficult to debug.
+There is no indication that they are there up until you reboot.
+The above is actually why I avoided mention things like `setup-disk` not liking btrfs either (it actually tells you something went wrong, and you can run grub-install yourself).
+
+However, now we can move on to the next stage.
+
+== Initrd
+
+Usually, the purpose of an initrd is simple - locate the root, mount it, pivot_root and exec into the init proper.
+On alpine, however, it has more jobs.
+
+Alpine supports so-called "diskless" and "data" installs.
+In these modes, the root is actually on a (usually) ro (usually) external media, like a cdrom.
+The modifications to the root filesystem are stored in a file called an "apkovl", which is extracted into the tmpfs root.
+In data mode, there *is* a disk, but it only provides `/var`.
+
+From the point of view of the initrd, though, both of these are identical, and there are only really two modes:
+
+. Find root, pivot into it, launch real init.
+. Get tmpfs, unpack any apkovls into it, launch real init (if any).
+
+This introduces a few problems.
+For one, the real root's location isn't known.
+Secondly, you have to find the apkovl before you do things with a tmpfs, but you don't know if it even exists.
+Combine this with the fact that devices can take some time to show up on linux, and you have a problem.
+Certainly, you do not want to sleep for 5 seconds and then do everything, and that might not be long enough of a wait anyway.
+
+Nathaniel Copa (the main alpine developer) wrote nlplug-findfs in order to combat this.
+nlplug-findfs is a 1400LOC C program that registers itself as the kernel's hotplug handler, and then coldplugs (using mdev!) repeatedly, in sequence, until it finds an apkovl (I assume it gives up after some time, but I haven't read the whole thing).
+I was told that at the time of writing, mdev couldn't serialize itself (it can now), and the new functionality is deemed too hacky, and that the timing of various devices appearing makes removing it infeasible.
+
+The issue is that nlplug-findfs is kind of a monster, it's mostly find(1) (looking for apkovl) and an mdev summoner.
+Meanwhile, mdev itself is approximately 680 LOC (counting mdev itself, excluding comments, platform headers etc) within busybox, and find(1) is already included.
+Further, it confuses some order of operations - for example, for btrfs multidevice to work, the module must be loaded, and after (ideally all of) the devices in question appear, they should be scanned, and then mounted.
+Scanning in the initrd currently happens outside of nlplug-findfs, but mounting happens within, alongside coldplugging.
+As such, btrfs multidevice shouldn't really ever work (and it doesn't).
+The conclusion was "apkovl on btrfs multidevice is not supported", while I see that as likely trivial to implement without it.
+Though, it is to be noted, that one potential solution is to add a hook system to mdev's callbacks, and run btrfs scans after any given block device showing up (since nlplug-findfs uses mdev to perform the actual coldplugging).
+
+Further issues due to nlplug-findfs (commonly reported ones, at least) are as follows, in no particular order:
+
+* loopback apkovl (or root) is impossible (as is common in multiboot rescue disks, and other such uses)
+* apkovl has to be in a specific location to be detected
+* in case the issue lies within it, single mode / initrd rescue will *not* help (you can't edit a binary in-place)
+
+It bears mentioning that when using the documented setup-bootable script with a .iso file as a source, grub will actually load through (as expected, unlike the failure mentioned in the previous section), but initrd will then fail to find the root correctly - it complains about there not being an /init.
+This sounds like a possible loopback issue, but I'm not sure, I encountered it by accident during the writing of this post.
+The takeaway here is that it is more complex than you'd normally expect, but does not have the additional testing behind it to make up for that - a contrast against the actual system once booted.
+
+Alpine's initrd does other interesting things (e.g networking), but I don't find this to be particularly relevant to the discussion at hand, and haven't looked into them particularly deeply.
+
+== Conclusion
+
+It's easy to point a finger and yell out that alpine is broken.
+However, I think it's much more fair to also point out that it's doing more things than most distributions.
+This, combined with upstream being weird (see: grub's 10_linux), and the lack of testing, means that many things tend to break in this specific area of operation.
+
+Ideally, I would like to rewrite large chunks of mkinitfs to remove old (or unneeded) features, remove nlplug-findfs, and resolve all outstanding issues (both past and current) in a more rescue-able way (shell).
+I can't guarantee when it will happen, nor if, though - I've a lot of things to do as-is.
+I'll try and update this post with any efforts in that direction in the future.

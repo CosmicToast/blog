@@ -1,0 +1,77 @@
+= Testing
+Chloe Kudryavtsev <toast@toast.cafe>
+v1.0, October 6, 2015: First publication
+:page-tags: dev
+
+Testing is complicated. The fact that so many people disagree on how to do it is only one sign of this. So how should we test, why should we test like this, what are the different approaches, why are those approaches a thing and similar questions will be considered here.
+
+== Existing Problems
+Before we test for issues, we need to know what kind of issues exist.
+This concept is related to what is known as "Levels of Testing". So before even going potential problems, let's go through these.
+
+There are 4 levels of testing recognized by everyone, examples are of a text-based calculator able to perform base-10 addition:
+
+. Unit Testing: the tests of https://www.google.com/search?q=define+atomic[atomic] bits in an application. This makes sure that individual components work as expected (e.g operator+(2,2) always returns 4).
+. Integration Testing: tests the interaction between units (that have been tested above). (e.g when we call the + in 2+2, does the exposed + lead us to the unit of + from above).
+. Component Interface Testing: tests the data being passed between units. (e.g when we do 2+2, are 2 and the other 2 both integers? are we actually passing 2s, or are they getting transformed?)
+. System Testing: tests the system as a whole. Does the user running "2+2" get 4 as a result? How about "3+3" and 6?
+
+Using these tests, the results of people trying to fix problems, let's try and work backwards, and figure out what kind of problems they are meant to be fixing.
+
+* from the existence of unit testing, we can conclude that individual stateless/atomic methods (etc) can misbehave.
+* from integration testing, we can see that (especially in the OO paradigm), some public/private modifier methods and similar can actually be doing / passing around something wrong, and that interfaces may be faulty.
+* component interface testing hints to us that data can get lost/corrupted/wrongly-passed (e.g wrong types)
+* system testing tells us that sometimes, despite everything else being perfectly functional, the way they are used is faulty
+
+We can classify bugs into three groups:
+
+* compile errors (such as missing a semi-colon in C)
+* runtime errors (such as dividing by 0)
+* logic errors (literally everything else)
+
+Before, it was seen as a good thing to put as many errors into the first category: the more and earlier you can catch, the better! However resentment over some things being considered errors, while actually simply being bad practices, as well as the difficulty of deploying to multiple platforms if compiling is required eventually helped more scripting languages enter the field, which do not (typically) compile or optimize at that level.
+
+Runtime errors are usually hard to find until the actual code is run with the specific circumstances, e.g you don't know a division by 0 can happen until you divide by 0, or are you going to mark all divisions as potentially problematic?
+
+Logic errors is the programmer doing something wrong, the result being wrong, while everything appears to work.
+
+It should now be obvious, that testing for compile errors is generally not necessary (or is to be done in the configuration phase, rather than the testing phase). Testing usually checks for runtime errors and logic errors, to the best of it's ability.
+
+== How Do We Test?
+There are many **many** approaches to testing, so I'm going to only cover two here, that are direct opposites of one another. We will cover coverage testing and edge-case/use-case testing.
+
+=== Coverage Testing
+Coverage testing is the glorified form of Unit Testing. This philosophy says that if we test every line of code at least once, the whole must thus work as a whole as well. Many open source projects on github (here's an https://github.com/JuliaLang/julia[example]) will post their "build status" (whether the HEAD of the tree compiles successfully or not) (aka testing for all potential compile errors!) and "Code Coverage".
+
+These got popular partially due to the elimination of compilers ; without compilers telling us something is broken, we will never know if a line is outright wrong until we run it (Runtime Error), so we should test all the lines, right?
+
+Code coverage is quite literally the % of lines of source code with meaning that are tested in some form. In fact, there are several https://coveralls.io/[services] that do just that.
+
+==== Advantages
+The advantages of this approach are rather obvious: if you've tested every single line of code, it must be all good, right? It means that *no one line will always fail*. That's about it, however.
+
+==== Disadvantages
+The disadvantages are also, quite obvious. There are little restrictions on what these tests do, so edge cases can creep through and simply seep through the test, with no way of you knowing. Moreover, if you don't have 100% coverage, and such a scenario occurs, you would first look in the not-covered areas, potentially taking longer to fix the bug.
+
+==== Conclusion
+There aren't many reasons not to use coverage testing, as it inspires confidence. However, making these tests takes time and potentially diverts efforts. While a good practice, stopping there is no good.
+
+=== Edge / Use Testing
+Other people, meanwhile, maintain that testing every line of code is unnecessary, and that we can test the compiler/interpreter not to be outright broken. Rather we should gather inputs and outputs and test for edge cases (the edge between "accepted" and "not accepted", e.g adding 1 to MAX_INT - 1) and use testing (how will people use this?).
+
+These tests generally take much longer to write, and are usually combined with regression testing (if we find a bug, we fix it, and then write a test that specifically checks for that bug). They are also examples of System Testing.
+
+Most proponents of this methodology I know also advocate for in-code (not in-test) Integration and Component Interface Testing (e.g asserting what type is being passed to a function to protect the API being misused), which makes perfect sense in combination of system tests.
+
+==== Advantages
+The advantage is that this will catch many more logic errors, while runtime errors will be caught by themselves and added into regression testing soon anyway. This uses more time than writing unit tests, but tends not to divert attention from "already tested" areas, meaning less potential time loss in the long run.
+
+==== Disadvantages
+The disadvantage is that if some runtime error is not caught by the internal testing team, it will get shipped. Obviously, the other approach does not cover this either (necessarily). Moreover, this kind of testing usually requires a software architect: someone that can tell you what the edge cases are, and how the users will tend to interact with the piece of software. This means more money to spend (and thus the lesser scale of adoption in open source projects).
+
+== So... Now What?
+Keep writing your tests, and consider what approach reaches out to you. Code coverage is an interesting concept, especially when you consider the existence of projects like http://klee.github.io[KLEE], which, through automatically generated code coverage testing, found several bugs in GNU coreutils, arguably the most tested piece of open source software... ever.
+
+I think that a combination (automated/generated unit-tests, with as many edge/use cases being tested, and the obligatory regression tests) is adequate.
+
+And then there are https://github.com/Popmotion/popmotion[projects] that seem to have no test suite at all, despite being rather popular. These projects tend to rely on very rigorous programming to avoid bugs in the first place, rather than detecting and fixing them, as well as testing by simply using them.

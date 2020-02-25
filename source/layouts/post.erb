@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <%= partial "header" %>
+    <!-- Only needed for math, so don't worry if you have JS disabled! -->
+    <script>
+      window.MathJax = {
+        loader: {load: ['input/asciimath', 'output/chtml', 'ui/menu']},
+        asciimath: {
+          delimiters: [['\\$', '\\$']]
+        }
+      };
+    </script>
+    <script async src="https://unpkg.com/mathjax@3/es5/startup.js"></script>
+    <%= stylesheet_link_tag "post" %>
+    <title><%= current_article.title %></title>
+  </head>
+  <body>
+    <%= partial "nav" %>
+    <main>
+      <h1><%= current_article.title %></h1>
+      <%= yield %>
+    </main>
+    <aside>
+      <p>Posted in
+        <%= link_to "#{current_article.date.year}", blog_year_path(current_article.date.year) %>
+        <% if current_article.tags %>
+        with tags<% current_article.tags.each do |tag| %>
+        <%= link_to "#{tag}", tag_path(tag) %><% end %><% end %>.
+      </p>
+    </aside>
+  </body>
+</html>

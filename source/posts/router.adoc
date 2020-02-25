@@ -1,0 +1,605 @@
+= Setting up an Alpine router
+Chloe Kudryavtsev <toast@toast.cafe>
+v1.0, August 13, 2018: First Publication
+:page-tags: alpine, sys
+
+One day, my ER-X just stopped cutting it for me.
+
+* I couldn't use wireguard on it.
+* I couldn't have persistent cron.
+* Any sort of ipv6 was awkward.
+* Couldn't have real dns. etc.
+
+So I got an x86 box - specifically the ECS Liva Z.
+
+This is the chronicle of me setting it up (specifically with alpine).
+Really the intent is to leave this for future-me as notes of various particularities, but if someone else finds it useful I'm fine with that too!
+
+It should by now be obvious that this is not my usual content, so feel free to leave now if you don't care.
+Or stay, to find out just how incompetent I am when my internal temperature is 99.5f.
+
+== Prepare Hardware
+
+With the lack of any identification, I'm assuming that the left NIC is going to be eth0.
+(note: it wasn't)
+I'm planning for eth0 to be WAN, and eth1 to be LAN.
+
+Taking a look at the power supply I notice it's far too powerful for what it's going to be used for - 19 volts at 3.42 amps (that's 65 watts!) - while benchmarks show this box (or something similar) consuming 12W at most.
+I suspect this is a question of a supplier deal, but will add a todo to consider getting a separate (smaller) PSU.
+
+Fetching a spare 5" cat6 cable, my handy K830 debug keyboard and my usual test hdmi input (it usually just hangs off my second monitor), I connect everything up.
+My cat6 cable goes into what I assume to be eth0, since I'm pretending my current LAN is WAN for setup purposes (my provider uses DHCP).
+
+I'm booting off of my unified rescue disk (in this case, netboot.xyz iPXE to chainload into alpine).
+
+== BIOS
+
+I end up doing the following:
+
+. Adjust the time (it was ~12h ahead of me, assembled in China?)
+. Disable EuP - I want reboots after AC failures.
+. Disable bluetooth - what would I need that for?
+. Leave wifi on (mostly because I might want to switch over from my AP, normally I'd disable it).
+. Disable S3 suspend (this thing won't "sleep").
+. Disable TPM20 support, because LUL MICROSOFT.
+. Minimize DVTM (which ends up being 64M prealloc and 128M total).
+. Disable "Azalia HD Audio" (this thing was marketed to audiophiles, lmao).
+. Set "Restore AC Power Loss" to "Power On" (finally, I've been looking for you!)
+. Operation System Select - having an option for Linux is interesting, let's see what it does.
+. Change up boot priorities - this stuff is kinda weird here, but the idea is obvious.
+. Disable secure boot - LOL.
+
+== Booting alpine
+
+This box can't iPXE proper, apparently. Tried several things.
+Burning alpine iso to a spare drive, I guess.
+
+After booting that, let's make an answer-file, since I want my root to be on btrfs (for helping this emmc live longer, relative to ext4).
+
+Mine ends up looking like this:
+[source, shell]
+----
+KEYMAPOPTS="us us"
+HOSTNAMEOPTS="-n home.toastin.space"
+TIMEZONEOPTS="-z America/New_York" # <1>
+SSHDOPTS="-c openssh" # <2>
+
+export BOOTFS=vfat
+export ROOTFS=btrfs
+export VARFS= # <3>
+export USE_EFI=yes
+DISKOPTS="-m sys /dev/mmcblk0"
+----
+<1> Montreal isn't on that older version yet
+<2> Dropbear only does RSA and DSA for authorized_keys
+<3> unset so it doesn't try anything funny
+
+NOTE THE `export`! My intial version didn't have them, but they're needed, because they're consumed by `setup-disk`, which is only normally called from `setup-alpine`.
+
+Apparently, the emmc contained an ntfs partition.
+That's real unfortunate for it.
+
+After some waiting, a few choices, and a reboot, I am now sshd in.
+
+== Comfort Zone
+
+Before I proceeded, I wanted to make sure everything's there to make me comfortable.
+Don't worry too much about most of this.
+
+[source, shell]
+----
+vi /etc/apk/repositories # <1>
+apk upgrade
+apk add tzdata && ln -sf /usr/share/zoneinfo/America/Montreal /etc/localtime
+rm -rf /etc/zoneinfo
+apk add vim zsh zsh-vcs git tmux
+git clone https://github.com/5paceToast/dotfiles
+./dotfiles/install.sh
+apk add shadow && chsh -s /bin/zsh # <2>
+mkdir $zd && cp $zshd/examples/zshrc.local $zd/ && vim $zd/zshrc.local # <3>
+apk del acct # <4>
+apk add grep man htop ldns iproute2
+vim /etc/ssh/sshd_config # <5>
+----
+<1> Move to edge, enable all repos (wireguard).
+<2> Relogin afterwards.
+<3> Relogin again.
+<4> Why is this here?
+<5> Turn off non-pubkey auth.
+
+Okay, now this system looks closer to usable.
+
+== Firewalling
+
+Time to actually make this thing into a gateway.
+
+First, I wanted to prepare the firewall. So I installed ferm.
+Ferm is good, you should use it.
+
+[source, shell]
+apk add ferm
+
+Uh oh! Alpine doesn't have a service file for it.
+That's fine though, we'll just write one.
+Since this is a oneshot service we'll just define `depend`, `start` and `stop`.
+I won't define `restart` since that's technically error prone on desired `stop`
+when large changesets occur.
+I'll also define an extra `export`, which will save the output to an `export.iptables` in the directory - purely convenience sake, maybe even (*gasp*) bloat!
+
+Without further ado, let's make the script:
+[source, shell]
+----
+#!/sbin/openrc-run
+
+description="For Easy Rule Making"
+description_export="Export ruleset into iptables format"
+
+extra_commands="dump"
+
+conf_file="${ferm_file:-/etc/ferm/ferm.conf}"
+dump_file="${ferm_dump:-/etc/ferm/ferm.iptables}"
+
+depend() { # taken from current edge iptables
+  before net
+  after sysctl
+  use logger
+  provide firewall
+}
+
+start() {
+  ebegin "Loading ${conf_file} ruleset"
+  ferm "${conf_file}"
+  eend $?
+}
+
+stop() {
+  ebegin "Unloading ${conf_file} rules"
+  ferm -F "${conf_file}"
+  eend $?
+}
+
+dump() {
+  ebegin "Exporting ${conf_file} into ${dump_file}"
+  ferm --remote "${conf_file}" > "${dump_file}"
+  eend $?
+}
+
+# vim: ft=sh
+----
+
+Alright, now we could touch `/etc/conf.d/ferm` (and even modify it!) but I don't care to. If someone wants to package this under ferm-openrc or whatever feel free I guess.
+
+Now let's write our initial firewall version (we'll update it later).
+
+[source, shell]
+----
+mkdir /etc/ferm
+vim /etc/ferm/ferm.conf
+----
+
+[source, perl]
+----
+@def $DEV_WAN = eth0;
+@def $DEV_LAN = eth1;
+
+@def $DEV_WG = ();
+
+@def $NET_LAN = 192.168.0.0/24;
+@def $NET_WG = 172.17.0.0/24;
+
+# any changes to the global ip will imply an interface reset
+# so reparse is fine
+# don't forget to make your hostname an FQDN
+@def $WAN_IP = `hostname -i`
+
+table filter {
+  chain INPUT {
+    policy DROP;
+
+    mod conntrack ctstate INVALID DROP;
+    mod conntract ctstate (RELATED ESTABLISHED) ACCEPT;
+
+    interface lo ACCEPT;
+
+    proto icmp ACCEPT;
+
+    # local services
+    proto tcp dport 22 ACCEPT; # ssh
+    proto tcp dport 53 interface ! $DEV_WAN ACCEPT; # dns
+    proto udp dport 53 interface ! $DEV_WAN ACCEPT; # dns
+    proto udp dport 69 interface ! $DEV_WAN ACCEPT; # dhcp
+    proto udp dport 69 interface ! $DEV_WAN ACCEPT; # tftp
+    proto udp dport 123 interface ! $DEV_WAN ACCEPT; # ntp
+    proto udp dport 1194 ACCEPT; # wireguard
+  }
+  chain FORWARD {
+    policy DROP;
+
+    mod conntrack ctstate INVALID DROP;
+    mod conntrack ctstate (RELATED ESTABLISHED) ACCEPT;
+
+    interface $DEV_LAN ACCEPT; # local clients can do whatever
+    #interface $DEV_WG ACCEPT; # so can vpn
+
+    proto icmp ACCEPT;
+
+    mod conntrack ctstate DNAT ACCEPT; # accept anything that's port-forwarded
+  }
+}
+
+table nat {
+  chain PREROUTING {
+    policy ACCEPT;
+
+    # port forwards, ala daddr $WAN_IP dport 65522 DNAT to 192.168.0.2:22;
+  }
+  chain POSTROUTING {
+    policy ACCEPT;
+
+    outerface $DEV_WAN MASQUERADE;
+    saddr $NET_LAN mod conntrack ctstate DNAT MASQUERADE; # needle point loopback
+  }
+}
+----
+
+That's a woozy! But it does load.
+
+== DNS
+
+Now we set up DHCP, DNS and TFTP (later).
+
+On alpine, the default dnsmasq configuration file includes everything inside of dnsmasq.d, so let's go wild! Separate this however you want.
+Personally, I put things into `global.conf`, `dns.conf` and `dhcp.conf` (fused together in this snippet).
+
+[source, shell]
+----
+except-interface=eth0
+domain-needed
+no-resolv # ::1
+no-poll # so you don't need to watch it
+
+server=1.1.1.1@eth0
+server=1.0.0.1@eth0
+server=8.8.8.8@eth0
+server=8.8.4.4@eth0
+
+expand-hosts
+domain=home.toastin.space
+
+dhcp-range=192.168.0.40,192.168.0.254,12h
+# I don't want ipv6 just yet
+# and yes, I generated this prefix
+# dhcp-range=fda0:328c:2c54:0::5000, fda0:328c:2c54:0::ffff, 64, 12h
+
+dhcp-option=option:ntp-server,0.0.0.0
+#dhcp-option=option:ntp-server,[::]
+
+dhcp-option=option:dns-server,0.0.0.0
+#dhcp-option=option:dns-server,[::]
+
+dhcp-boot=pxelinux.0
+enable-tftp
+tftp-root=/srv/tftp
+tftp-no-fail
+tftp-secure
+----
+
+I also made `static.conf` for all my static leases.
+They just look like `dhcp-host=MAC,IP` (most of the time).
+
+Let's prepare TFTP - from `conf.d` we know the user and group will be `dnsmasq`...
+
+[source, shell]
+----
+mkdir -p /srv/tftp
+wget https://boot.netboot.xyz/ipxe/netboot.xyz.kpxe -O /srv/tftp/pxelinux.0
+chown -R dnsmasq:dnsmasq /srv/tftp
+chmod 700 /srv/tftp
+----
+
+== NTP
+
+We're already running chrony, installed by setup-alpine.
+However, our dnsmasq configuration mentions this server as an ntp one.
+So let's figure that out.
+
+I added this to `chrony.conf`:
+
+[source]
+----
+local
+
+allow 192.168.0.0/24 # LAN
+allow 172.17.0.0/24 # VPN
+allow fda0:328c:2c54:0::/64 # LAN
+allow fda0:328c:2c54:ffff::/64 # VPN
+----
+
+== Interfaces
+
+Now that we have a rough outline of a router's software, we can do some work on the interfaces, as before, temporarily ignoring wireguard.
+
+[source]
+----
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+
+# LAN: 192.168.0.0/24 and fda0:328c:2c54:0::/64 (available: fda0:328c:2c54::/48)
+
+auto eth1
+
+iface eth1 inet static
+  address 192.168.0.1
+  netmask 255.255.255.0
+  pre-up echo 1 > /proc/sys/net/ipv4/ip_forward
+
+iface eth1 inet6 static
+  address fda0:328c:2c54:0::1
+  netmask 64
+  pre-up echo 0 > /proc/sys/net/ipv6/conf/eth1/accept_dad
+----
+
+You may notice I'm disabling DAD on eth1 - on my system/setup, it never actually completed.
+I have some suspicions (e.g maybe alpine not enabling optimistic_dad, or the lack of a physical link).
+Either way, I properly generated my prefix as per the RFC, and it's in the private range, so it shouldn't be a problem.
+
+== QoS
+
+I don't need any extremely comprehensive QoS, but I do want some of it.
+Alpine has its own QoS scripts, but they're extremely outdated (e.g it calls `apk_add(1)`...)
+
+I started writing my own service, but ingress immediately made it a giant PITA (not that it wasn't one already)...
+
+I might come back to this later, but in the meantime I just put `net.core.default_qdisc = fq_codel` into my sysctl.conf
+
+== UPnP
+
+UPnP is mostly for local-hosted public-accessible lobbies that are only up temporarily.
+I might want this eventually, but right now it's not that much of a priority. TODO?
+Maybe once I make sure it won't actually mess with my firewall.
+
+== Reboot
+
+Now let's plug it into my network (as the gateway) and make sure everything works as expected...
+Initially, I plug it in in a "temporary" setup (read: no cable management).
+
+Turns out, my links hate me.
+As does DHCP.
+A lot of mostly useless fiddling happened, but the important lessons that came out of this:
+
+. Always test your link, link failures can LOOK like someone just isn't responding to your packets.
+. DHCP sucks.
+.. Also, dhclient does weird things on Alpine.
+. Don't forget to release any DHCP IPs you get before you start doing other things.
+
+Anyway, now I have a functional gateway which uses about ~30% CPU on max packet load.
+
+== Wireguard
+
+Okay, now let's set up wireguard.
+Eventually, I want to be able to connect my LAN to my workplaces' LAN, but first I want to secure my phone / laptop and such.
+
+First, let's make a configuration file: `/etc/wireguard/wg0.conf`.
+I'm going to use the 172.17.0.0/16 address space for any wireguard connections, with my home one being 172.17.0.0/24.
+
+[source, shell]
+----
+wg genkey | tee privkey | wg pubkey > pubkey
+wg genkey | tee client.key | wg pubkey > client.pub
+vim wg0.conf
+----
+
+[source, ini]
+----
+[Interface]
+ListenPort = 1194 # since we set that up earlier
+PrivateKey = # insert your generated privkey here
+
+[Peer]
+PublicKey = # insert your client.pub here
+AllowedIPs = 172.17.0.100/32
+----
+
+Set up your client with the abovementioned pubkey and client.key.
+
+However, that's not quite it - we can't forward packets!
+Edit our above ferm configuration with `@def $DEV_WG = wg0;`.
+
+But there's no such interface, you may notice.
+This is where we make it.
+Thanks to wireguard being very simple, we can do it relatively easily within ifupdown.
+
+[source]
+----
+auto wg0
+iface wg0 inet static
+  addres 172.17.0.1
+  netmask 255.255.255.0
+  pre-up ip link add $IFACE type wireguard
+  pre-up wg setconf $IFACE /etc/wireguard/$IFACE.conf
+  post-down ip link del $IFACE
+----
+
+Note that the three pre-{up,down} commands are generic, and can be reused for other wireguard interfaces.
+DHCP, DNS, etc will already work, since those listen on everything, and only block eth0 (WAN).
+
+== Firewall optimization pass
+
+Cool, this is pretty reasonable now!
+But our firewall could use some work - let's optimize it.
+
+Here is what it looks like now:
+[source, perl]
+----
+@def $DEV_WAN = eth0;
+@def $DEV_LAN = eth1;
+
+@def $DEV_WG = wg0;
+
+@def $NET_LAN = 192.168.0.0/24;
+@def $NET_WG = 172.17.0.0/16;
+
+# any changes to this would mean an interface reset
+# which implies a reparse
+@def $WAN_IP = `hostname -i`;
+
+table filter {
+    chain INPUT {
+        policy DROP;
+
+        mod conntrack ctstate INVALID DROP;
+        mod conntrack ctstate (RELATED ESTABLISHED) ACCEPT;
+
+        interface lo ACCEPT;
+
+        proto icmp ACCEPT;
+
+        # local services
+        proto tcp dport 22 ACCEPT; # ssh
+        proto tcp dport 53 interface ! $DEV_WAN ACCEPT; # dns
+        proto udp dport 53 interface ! $DEV_WAN ACCEPT; # dns
+        proto udp dport 67 interface ! $DEV_WAN ACCEPT; # dhcp
+        proto udp dport 69 interface ! $DEV_WAN ACCEPT; # tftp
+        proto udp dport 123 interface ! $DEV_WAN ACCEPT; # ntp
+        proto udp dport 1194 ACCEPT; # wireguard
+    }
+    chain FORWARD {
+        policy DROP;
+
+        mod conntrack ctstate INVALID DROP;
+        mod conntrack ctstate (RELATED ESTABLISHED) ACCEPT;
+
+        interface $DEV_LAN ACCEPT; # local clients can do whatever
+        interface $DEV_WG ACCEPT; # as can vpn people
+
+        proto icmp ACCEPT;
+
+        mod conntrack ctstate DNAT ACCEPT; # accept anything that's port-forwarded
+    }
+}
+
+table nat {
+    chain PREROUTING {
+        policy ACCEPT;
+
+        # port forward, ala daddr $WAN_IP dport 65522 DNAT to 192.168.0.21:22;
+    }
+    chain POSTROUTING {
+        policy ACCEPT;
+        outerface $DEV_WAN MASQUERADE;
+        saddr $NET_LAN mod conntrack ctstate DNAT MASQUERADE; # needle point loopback
+    }
+}
+----
+
+First off, INPUT in general seems a bit weak right now - we should array-ize that.
+Secondly, PREROUTING as-is doesn't need to exist, so let's move it out.
+
+[source, perl]
+----
+@def $DEV_WAN = eth0;
+@def $DEV_LAN = eth1;
+
+@def $DEV_WG = wg0;
+
+@def $NET_LAN = 192.168.0.0/24;
+@def $NET_WG = 172.17.0.0/16;
+
+# any changes to this would mean an interface reset
+# which implies a reparse
+@def $WAN_IP = `hostname -i`;
+
+# globally accessible services
+@def $WAN_TCP = ( 22 );
+@def $WAN_UDP = ( 1194 );
+# ( ssh ) ( wireguard )
+# locally accessible services
+@def $LAN_TCP = ( 53 );
+@def $LAN_UDP = ( 53 67 69 123 );
+# ( dns ) ( dns dhcp tftp ntp )
+
+table filter {
+    chain INPUT {
+        policy DROP;
+
+        mod conntrack ctstate INVALID DROP;
+        mod conntrack ctstate (RELATED ESTABLISHED) ACCEPT;
+
+        interface lo ACCEPT;
+
+        proto icmp ACCEPT;
+
+        # local services
+        interface ! $DEV_WAN {
+            proto tcp dport $LAN_TCP ACCEPT;
+            proto udp mod multiport destination-ports $LAN_UDP ACCEPT;
+        }
+        proto tcp dport $WAN_TCP ACCEPT;
+        proto udp dport $WAN_UDP ACCEPT;
+    }
+    chain FORWARD {
+        policy DROP;
+
+        mod conntrack ctstate INVALID DROP;
+        mod conntrack ctstate (RELATED ESTABLISHED) ACCEPT;
+
+        interface ( $DEV_LAN $DEV_WG ) ACCEPT; # lan and vpn can do whatever
+
+        proto icmp ACCEPT;
+
+        mod conntrack ctstate DNAT ACCEPT; # accept anything that's port-forwarded
+    }
+}
+
+table nat chain POSTROUTING {
+    policy ACCEPT;
+    outerface $DEV_WAN MASQUERADE;
+    saddr ( $NET_LAN $NET_WG ) mod conntrack ctstate DNAT MASQUERADE; # needle point loopback
+}
+
+table nat chain PREROUTING policy ACCEPT;
+# port forward example:
+# tablet nat chain PREROUTING daddr $WAN_IP dport 65522 DNAT to 192.168.0.2:22;
+----
+
+If we every add more than the 1 port for INPUTs, we move those to multiport declarations.
+If we end up with a lot of `! $DEV_WAN` rules (each is 15 ports!) we can add `@subchain` to wrap that.
+
+== TFTP Round 2
+
+I do actually want generic netbooting, and I realized my current setup will only work for non-UEFI clients.
+This is actually quite easy to set up.
+
+First, let's get our files (netboot.xyz.kpxe and netboot.xyz.efi) and drop them into our tftp directory.
+
+Then, we remove the dhcp-boot section from dhcp.conf, and add the following:
+[source, shell]
+----
+dhcp-match=bios, option:client-arch, 0
+dhcp-match=uefi, option:client-arch, 7
+dhcp-boot=tag:bios,netboot.xyz.kpxe
+dhcp-boot=tag:uefi,netboot.xyz.efi
+----
+
+And after restarting dnsmasq... that's about it.
+
+== Ferm round (3?)
+
+After a few updates and reboots, I noticed that ferm was failing to start on boot.
+I immediately suspected the issue to be in the depend() function - after all, I had copied it directly from the iptables service.
+
+After thinking about 30 seconds, I realized that `before net` might be an issue - after all, won't iptables be upset if I reference an interface (wg0) before it exists (before ifup -a is ran)?
+
+Sure enough, setting it to `after net` instead fixed that issue.
+This made me think though - since we `provide firewall`, does anything use it?
+
+I noticed that quite a few services (correctly) went `after firewall`, but the `dnsmasq` entry was... strange.
+If you set a `$BRIDGE` it would create a bridge and set up a firewall of its own in `setup_pre`, all without going `after firewall`.
+
+`sshd` also did not actually run `after firewall`.
+
+Thankfully, my `dnsmasq` configuration rejects eth0, and `sshd` is exposed to the internet anyway.
+However, this is highly questionable, and I might try and send in patches later.

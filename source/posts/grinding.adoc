@@ -1,0 +1,33 @@
+= Grinding
+Chloe Kudryavtsev <toast@toast.cafe>
+v1.0, November 16, 2015: First publication
+:page-tags: games
+
+Grinding (and farming) in video games is typically defined as performing some action repeatedly for the sake of getting something. Before we proceed, I'd like to define both of them (as they will be used in this post).
+
+Grinding:: The process of repeatedly doing a repeatable action awaiting a low chance event. For example a rare drop from a respawning enemy, or a rare reward from a quest one may repeat.
+Farming:: The process of repeatedly doing a repeatable low-reward action in order to eventually accumulate to a larger reward. For example, killing low level enemies for their experience, rather than risking to fight higher level enemies.
+
+== So what's the problem?
+Many games will in some way incorporate grinding or farming into them, as a method to achieve natural progression. In fact, it is difficult to think of a game that does not do this. Here are a couple of examples to start with:
+
+* The Binding of Isaac: you repeatedly clear the same randomly generated dungeon for the sake of beating the game in specific ways that will unlock new items (grinding).
+* Hearthstone: you repeatedly do daily quests to get fairly low amounts of gold. You attempt to win games in ranked to get a reward based on your maximum rank at the end of the season, etc.
+* League of Legends: you farm creeps for small amounts of gold and experience.
+* Call of Duty: you kill players in matches repeatedly to get achievements and new weapons.
+* Monster Hunter: you repeatedly kill monsters to get things they may drop, and repeatedly loot plants, rocks, etc for components.
+* Shin Megami Tensei: you repeatedly fight monsters to get experience, money, or new team members. You repeatedly turn in items you might find from these fights for more money.
+* *Insert name of an MMO*: fighting mobs for low experience/gold amounts and dungeons/monsters for potential drops.
+
+Pretty much every game incorporates some form of farming or grinding, with very few exceptions (such as Sword and Sworcery), which tend to be purely focused on telling a story. With something so prevalent in games, one would think that getting that aspect right is fairly important.
+
+Before thinking this subject through, I used to say that I hated all forms of grinding. I would point at MMOs with my finger and say that I simply do not enjoy that. That is all as I enjoyed playing Hearthstone, Isaac, League of Legends, and Monster Hunter. There seemed to be a distinction between the two, seemingly identical things. So what is the difference?
+
+== Types of Grinding
+I noticed a certain trend in games that had grinds that I enjoyed. The grind wasn't the primary focus. In Isaac, you play to see the different item combinations, to get through a hard run and feel amazing for it, or to go on a power trip with your Tammy's head and Brimstone combo. In Monster Hunter, you're fighting epic creatures, that are stronger than you can possibly be, that you cannot trade with. In Hearthstone you do the dailies because they give you something to do that isn't playing that one face deck. In Dark Souls, you don't mind skipping the enemies, and simply rush to the bosses, which are all unique and amazing fights. In League, you're attacking the creeps, but you're also there to harass your lane opponent, or you're in the jungle, choosing which camps to fight for the sake of jumping into a lane, surprising the enemy and taking them down with your friend.
+The goal of the grind is not purely for the sake of the grind and what it gives you. Meanwhile, in the games I tended to turn my nose up at didn't seem to have much of an additional goal associated with the grind. You get experience and gold, maybe items, but all you are doing is hitting the same slightly weaker or slightly stronger enemy.
+In short, the two types of grinding are the ones done for the results, and the ones that have an associated process with them.
+
+== Grinding as a Design Decision
+Grinding can be a large part of a game, and so we need to be aware of what we are doing with them. Incorporating some level of grind into your game is absolutely logical, it's almost guaranteed to increase its lifespan, but the process itself has to be enjoyable, not just the rewards. In fact, it's even possible to eliminate the reward almost entirely in favor of the process. Isaac players keep playing even after they have unlocked all the items and achievements, though this is also partially due to the random nature of the game.
+Next time you're making a game, another consideration in design should be "what is the player going to spend the majority of their time doing?" If a player spends the majority of their time doing something unenjoyable, this increases the chances that they won't comeback to the game after a session ends. So next time you incorporate a grindable situation, make it something the player will want to do even without the reward, or simply make it something that will progress itself through play.

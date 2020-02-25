@@ -1,0 +1,198 @@
+= Language Types
+Chloe Kudryavtsev <toast@toast.cafe>
+v1.0, January 7, 2016: First publication
+:page-tags: dev
+
+Typing systems are a common source of confusion in novice programmers. Let's talk about them!
+
+First of all, it is worth noting that I will not be mentioning specialized type systems (such as dependent types, union types, etc.), and will rather focus on languages, and their implementation of types.
+
+Type systems come in multiple shapes and sizes. The primary distinctions are between the type itself, which is divided into static, dynamic and duck; strong and weak; as well as the implementation. The first two distinctions are what we will be talking about today.
+
+== Typing Systems
+
+=== Static Typing
+Static typing is when every variable has a specific type, determined at compile time (or write-time!). An example of this is the C family of languages. Consider the following (C++, since strong typing helps in this example):
+
+
+[source, c++]
+----
+int a = 5;
+char b = 'b';
+double c = 5.00;
+----
+
+Changing things here, such as removing the period and zeroes from the double definition would result in a compiler error. We declare what type a variable is at the time of its creation, and it never changes. While you can cast (more on this in a second), you cannot cast a variable unto itself. Consider the following:
+
+[source, c++]
+----
+char b = 'x';
+b = (int)(b); // <1>
+int a = (int)(b); // <2>
+----
+<1> This will produce an error, since our lvalue is not of type int, but the rvalue is.
+<2> This is perfectly fine though.
+
+However, it's important to note that pure statically typed languages barely exist. Let's take the case of C++, for example, which supports casting. Downcasting (see example) actually requires some form of dynamic checking of types, effectively becoming a mixed type system. Here's a demonstration:
+
+[source, c++]
+----
+class A {};
+class B : public A {};
+int main()
+{
+	A* a = new B();
+	B* b = a; // <1>
+	B* b = (B*)a; // <2>
+}
+----
+<1> This doesn't work - why would it? A is of type `A*`, not `B*`.
+<2> This does work, but it's a naive implementation.
+
+You realize the naivete of this approach when you twist it a bit:
+
+[source, c++]
+----
+class A {};
+class B {};
+int main()
+{
+	A* a = new A();
+	B* b = (B*)a; // <1>
+}
+----
+<1> Compiles just fine.
+
+Being a pure static language, C++ approaches casting from a very interesting perspective: "I don't know, but the programmer probably knows, so I'll let it happen". This is also, in part, because it is easy to convert between different types of pointers. Let's look at the exact same examples in Java.
+
+[source, java]
+----
+class A {}
+class B extends A {}
+public class Main {
+	public static void main(String[] args) {
+		A a = new B();
+		B b = (B)a; // <1>
+	}
+}
+----
+<1> This also works.
+
+
+In contrast with:
+
+[source, java]
+----
+class A {}
+class B {}
+public class Main {
+	public static void main(String[] args) {
+		A a = new B(); // <1>
+		B b = (B)a; // <2>
+	}
+}
+----
+<1> Error: incompatible types: B cannot be converted to A
+<2> Error: incompatible types: A cannot be converted to B
+
+Static typing is useful in compile-time optimization: already knowing the type of something means you don't need expensive runtime tests to figure out what type it is, but that carries its own complexity in the end.
+
+=== Dynamic Typing
+In dynamic typing, a variable will typically have a "tag" associated with it during runtime that contains the information on what type it is right now. It also tends to allow things that are often not at all allowed in static typing. Worthy of note is that most dynamically typed languages implement duck typing, as the two are not incompatible, but for now, let's look at this lengthy example from python.
+
+[source, python]
+----
+a = 5
+print(a) # <1>
+a = "twenty"
+print(a) # <2>
+
+class A:
+	def a(self):
+		print("in A")
+	pass
+
+class B:
+	def a(self):
+		print("in B")
+	pass
+
+a = A()
+b = B()
+
+a.a() # <3>
+b.a() # <4>
+
+b = a
+b.a() # <5>
+----
+<1> => 5
+<2> => twenty
+<3> => in A
+<4> => in B
+<5> => in A
+
+Here we see that a and b obviously change, but they are very flexible in doing so, because they are dynamically typed.
+
+The advantage of dynamic typing is the massive flexibility it has. However, it comes at a cost of efficiency, and in some cases, it can cause runtime failures (some languages allow recovery from it, however). Here's an example of a type problem in python:
+
+[source, python]
+----
+a = "abcd"
+a[2] = 'x' # <1>
+a = a[:2] + 'x' + a[3:] # <2>
+b = a + 5 + "stuff" # <3>
+b = a + str(5) + "stuff" # <4>
+----
+<1> TypeError: 'str' object does not support item assignment
+<2> Works fine.
+<3> TypeError: Can't convert 'int' object to str implicitly
+<4> Works fine.
+
+These happen because values still have types, they can simply change at will, as well as because python is strongly typed. In short, dynamic typing is when any type errors are simply reported at runtime, and types are fairly flexible in what one can do with them.
+
+=== Duck Typing
+Duck typing comes out of an old saying: "if it walks like a duck, swims like a duck, and quacks like a duck, then it probably is a duck". This typing mechanism relies on some specific identifiable attributes of a value in order to use it as if it was another. An example implementation as proposed by me was to use reserved function names. For example, consider the following:
+
+[source]
+----
+class A { x="hello" }
+class B { y="byebye" }
+def A.&A(:self) { return :self }
+def B.&B(:self) { return :self }
+def B.&A(:self)
+{
+	a = A
+	a.x = :self.y
+	return a
+}
+def A.@==(:self, :other)
+{
+	a = :self.&A # <1>
+	b = :other.&A
+	return a.x == b.x
+}
+a = A
+b = B
+c = (A)b # <2>
+a == c # <3>
+----
+<1> If this was some class C, this would throw an error.
+<2> Compiles to `b.&A()` which compiles to `B::&A(b)`.
+<3> Compiles to `a.@==(c)` which compiles to `A::@==(:self(a), :other(c))`, returns false.
+
+Many modern languages that are dynamically typed (such as python and ruby, for example) also implement duck typing in one way or another. See the python example from the previous section, notice the str(x) and the way we can print an integer.
+
+Duck typing needs quite a bit of planning to implement properly, but can avoid some of the issues of pure dynamic typing.
+
+=== Gradual Typing
+As of python 3.5, it is gradually typed. In gradual typing, you can define some variables as having some specific type during compile-time, but other variables may be left untyped. Thus the typing resolution happens gradually from compile to resolve times. While it is only being given brief mention here, because it is noteworthy, it should be fairly trivial to figure out given the examples above.
+
+== Strong vs Weak
+Strong vs Weak typing is fairly commonly mentioned by programmers, myself included. What may surprise some is that good definitions of what each is do not actually exist. The definition I use, which allows me to be understood fairly well most of the time is as follows: a strongly typed language does little implicit conversions and is not afraid to throw typing errors at any time, an example being python. A weakly typed language can do many conversions implicitly and tends not to throw type-related exceptions (possibly because it just crashes, or doesn't compile), an example being C, where many types can convert between each other (see example) implicitly and all pointers are castable to other pointers.
+
+[source, c]
+char a = 5;
+
+== Conclusion
+In conclusion, type systems are integral to how a language functions, and choosing a proper type system comes with various tradeoffs.

@@ -1,0 +1,64 @@
+= The Source Host Dilemma
+Chloe Kudryavtsev <toast@toast.cafe>
+v1.0, June 23, 2016: Second edit (OStatus)
+:page-tags: dev, sys
+
+== Context
+https://git-scm.com/[Git] is a good Version Control System. However, every project wants more than *just* version control. Issue/Bug tracking, CI, wiki/website hosting are all services projects typically want. The obvious solution is to follow the unix philosophy: to take git as a good standalone part and use it with other such parts, interfacing them, to create a good endpoint product.
+
+This is what some products (I call them source hosts) do. They take git, and build a set of services around it, integrating as closely to the source code itself as possible for the sake of convenience. A few of these are https://github.com/[Github], https://gitlab.com/[GitLab], and https://gogs.io/[Gogs].
+
+Github:: closed source, and requires you to get an enterprise variant ($2500 / 10 users / year!). Beyond that, it's a centralized source host (at their [website][github]).
+GitLab:: open source. They have a centralized instance (at their [website][gitlab]), but self hosting is *relatively* trivial (as trivial as any complex RoR application).
+Gogs:: open source, but do not offer a centralized variant (just a demo); you're meant to host it yourself. Doing so is surprisingly easy, considering it's written in https://golang.org/[Go].
+
+For someone interested to host their source somewhere with the abovementioned advantages (project-style integration), they end up with two choices, as things are now:
+
+* Trust a large platform (such as github)
+* Host it themselves
+
+== The Problem
+Trusting a large platform, however, is quite difficult. Github and GitLab have both removed content that was not necessarily illegal from their centralized hubs. While it is hosted by them, and so they have full right to do so, the way of determining what should be removed or not is as always mostly arbitrary. We've seen this on https://youtube.com[youtube] a lot, for example, where remotely critical works get removed by the demands of third parties, citing the community guidelines, while other channels that are breaking each one are allowed to stay on. So while github and gitlab are perfectly allowed and justified to do what they want, that does make it harder to trust their centralized hub, in a more absolute way. The clear advantage, is in each centralized hub, there are *many* users. People are likely to already have an account there, and contributing/searching becomes trivial.
+
+Hosting your source code yourself is the other side of the spectrum. You can trust yourself with your own content absolutely - if you decide you want to remove it, it's because you decided it, not someone else. However, you're giving up a lot. For example, to report a bug a user will either have to make *yet another account*(TM). The alternative is to allow people to make new bugs anonymously without signing in (do you see why this is a bad idea? if not, hang around the internet for a bit longer). You're asking for a lot of your users and contributors, and it's unlikely that your self-hosted instance will have the same kind of advantages that the large platform does, even with all the same features.
+
+Sometimes, self hosted instances become somewhat bigger (for one version or another). An example of this is where this blog (at the time of writing) is hosted, a GitLab instance named https://gitgud.io[GitGud]. As of now, it has 802 repositories in it, which is *tiny* (for reference, GitHub hit 10 million repositories by the end of 2013 (https://github.com/blog/1724-10-million-repositories[post]) (estimating the current amount got quite messy; my naive checks (using their API + since) got around 68 million, but that includes deleted repositories and forks that have never been modified). The problem with such growing third-party self hosted instances is that they have the disadvantages of both. You're still asking your users to make another account, and there is no guarantee that the third party will continue to agree with you!
+
+== A Solution?
+A potential solution to this dillema that I've come up with is a sort of distributed-centralized approach. How would this work?
+
+* All accounts are tied to an external system (for example, all accounts are tied to https://keybase.io[keybase] accounts).
+* All projects on all online self-hosted instances (including the big "central" one) are available on every other instance, through a built-in pseudo-dns system (ala Tox). Essentially, we hide the physical location of the source bits behind a layer of abstraction. So let's say we have self-hosted instance X and Y. You can access project A hosted on X by searching for it on Y (and there'll just be a sticker saying "hosted on X", or it'll just open X's website for it). All metadata, issues, CI, etc are then all managed wherever the physical data is stored in, permissions are per-project and available everywhere, but actual access to the data can be done from any one instance.
+* Specific legal text, essentially saying that the one hosting a particular set of code is the one responsible for it. This way, in the above example, if A is illegal in the country Y is located in, Y cannot be held responsible for it, only X can (and X can easily be in another country!).
+
+If integration is done using keybase specifically, it can even be used more to provide permission management!
+
+I'm not sure how doable this actually is, but it does solve the dillema fully:
+
+* You don't need to trust the centralized hub - you can host your own.
+* You do not ask of anything from your users - if they're already using the centralized hub, they already have an account on your instance, and can access it transparently.
+* The centralized hub / writer of the source can remove anything they don't like from their hub, and don't need to worry about things others self-host due to the legal provisions.
+
+This could be a legitimate solution to a problem that's been plaguing source hosting (or should I call it project hosting, at this point?) for as long as I can remember/see. I'd even consider trying to make it if it was concluded that it *is* doable, and I decided I care enough and have the time/energy for it.
+
+Hopefully this informs some people about this age-old dillema, and maybe gives some people new ideas on how to solve it!
+
+___
+
+== Edit 1
+I've changed my personal git workflow since this post, and wanted to document it.
+
+First off, all actual hosting and development happens on my own VPS, running http://gitolite.com[gitolite]. It has anonymous git access using https://git-scm.com/docs/git-daemon[git-daemon] (except for "private" repos, which at the time of edit (21/08/2016) there are none), and can be browsed using https://git-scm.com/docs/gitweb[gitweb], accessible https://git.toastin.space[here].
+
+Then, all of the sources are "mirrored" by GitLab, which has a special http://docs.gitlab.com/ee/workflow/repository_mirroring.html[mechanism] to automate that. Github wasn't used because, while it does have this mechanism, it's only available to paying users. The alternative (doing it https://help.github.com/articles/duplicating-a-repository/[manually]) is not something I want to spend time doing, and don't feel like automating using hooks (privilege separation), or cron (a pain, unreliable, and makes too many assumptions). If you want github mirrors, you can pay me to setup a paid "group" account (if I ever set up donations... which I probably won't, but it's a possibility), or just yell at github to get feature-parity with their open-source counterpart.
+
+The workflow I have planned goes about like this:
+
+* Users can report issues on gitlab.
+* Said users can fork the ro gitlab repository, develop a patchset, and send the git-formatted patch to me. I can then test it locally, and apply it to the "real" repo if it's fit.
+* People who want to join the development team can simply be given access through gitolite (all they have to do is send me their pubkey).
+
+I might eventually try to wrap around the pull request system, but I don't think it's necessary, at this point.
+
+== Edit 2
+It may be interesting to investigate https://www.w3.org/community/ostatus/wiki/Main_Page[OStatus] in relation to my distributed-website idea. To be updated if I ever do that.
