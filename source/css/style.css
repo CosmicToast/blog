@@ -20,6 +20,7 @@ h1, h2, h3 {
 nav {
   border-bottom: solid 1px grey;
   text-align: center;
+  padding-bottom: 8px;
 }
 nav a {
   padding-right: 10px;
@@ -29,6 +30,7 @@ nav a {
 footer {
   border-top: solid 1px grey;
   text-align: center;
+  padding-top: 8px;
 }
 
 /* first paragraph */
