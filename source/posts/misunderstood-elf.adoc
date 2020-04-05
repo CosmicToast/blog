@@ -1,5 +1,6 @@
 = The Misunderstood ELF: How Internet Myths Are Born
 Chloe Kudryavtsev <toast@toast.cafe>
+v1.0, April 5, 2020
 :page-tags: dev
 
 Consider the following situation.
