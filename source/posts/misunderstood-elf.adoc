@@ -1,0 +1,183 @@
+= The Misunderstood ELF: How Internet Myths Are Born
+Chloe Kudryavtsev <toast@toast.cafe>
+:page-tags: dev
+
+Consider the following situation.
+You have some payload (let's say it's a zip file) and an ELF executable.
+You want to distribute them together.
+So you concatenate them both (ELF first, so you can still run it).
+Now you want to extract the payload from the combined file.
+This should be simple enough, right?
+There are projects out there that do it (such as appimages).
+As it turns out, it is not quite so simple.
+
+== The internet's wisdom
+What does the internet have to say on the matter?
+Let's take a look.
+
+=== Stack Overflow
+There are two main StackOverflow questions that discuss this subject.
+We'll be taking a look at the most relevant answer of both.
+Here they are: link:https://stackoverflow.com/questions/27085563/find-where-32-bit-elf-linux-binary-ends-and-padding-begins[one] and link:https://stackoverflow.com/questions/2995347/how-can-i-find-the-size-of-a-elf-file-image-with-header-information[two].
+
+The first one mentions the correct formula to be `e_shoff + (e_shentsize * e_shnum)` based on the "format spec", which just links to elf(5).
+A different answer there claims that it may be different - according to the other answer, there are three options:
+
+. the file header (I'm not sure why they mention this, this is actually impossible)
+. the section header table (`e_shoff + (e_shentsize * e_shnum)`)
+. the last section (`sh_offset + sh_size`)
+
+The second one talks about "descriptive" information, which according to them is `e_shsize + (e_phnum * e_phentsize) + (e_shnum * e_shentsize)`.
+Afterwards, they claim you need to compute the `sh_size` of each section, but claims it won't work due to alignment.
+A different answer gives our notorious formula: `e_shoff + ( e_shentsize * e_shnum )`.
+They mention something interesting too:
+[quote]
+____
+This assumes that the section header table (SHT) is the last part of the ELF.
+This is usually the case but it could also be that the last section is the last part of the ELF.
+This should be checked for, but is not in this example.
+____
+Yet another claims it is the offset + size of the final section.
+
+So in short, the internet concludes that `e_shoff + (e_shentsize * e_shnum)` is the correct answer, with a provision that a section could theoretically be the final entry.
+
+=== appimage (old)
+Originally, appimage used link:https://gist.github.com/probonopd/a490ba3401b5ef7b881d5e603fa20c93[this].
+The formula here is the one we discussed previously: `e_shoff + (e_shentsize * e_shnum)`.
+Not much else to discuss here.
+
+=== libappimage (new)
+So what does libappimage do?
+At the time of writing, the relevant code starts link:https://github.com/AppImage/libappimage/blob/2cc1e262151f5f5c007422483b06e7ff6a0f53eb/src/libappimage/utils/ElfFile.cpp#L96[here].
+This comment in particular may be useful: "ELF ends either with the table of section headers (SHT) or with a section".
+So they get "last shdr offset", which they calculate as `e_shoff + (e_shentsize * (e_shnum - 1))`.
+Then they read that into shdr64.
+Then they find which is greater: `e_shoff + (e_shentsize * e_shnum))`, or `shdr64.sh_offset + shdr64.sh_size`, and use that.
+
+In short, libappimage agrees with stack overflow, or perhaps took the answer from them.
+
+== Ok, but what is the truth?
+Ok, so we have concluded that basically everyone assumes that the last part of an ELF file is either the section header table (SHT) or a section.
+Is this guaranteed?
+Let's turn to the *actual* format specification (hint, it's not elf(5)): https://refspecs.linuxfoundation.org/elf/elf.pdf
+I encourage you to open it up and follow along!
+
+First, we want to know what kind of things are even *in* an ELF file.
+Are there any order guarantees?
+For that, we should turn to book 1, chapter 1, "Object Files".
+
+Here we get to find out that there are actually three types of ELF files:
+
+. A relocatable file that holds code and data suitable for linking with other ELF files to make either an executable or a shared object.
+. An executable file that, well, can be ran.
+. A shared object file that holds code and data suitable for linking in two contexts.
+.. You can combine shared object files with other relocatable files to make another object file.
+.. You can use a dynamic linker to combine a shared object file with an executable file and other shared objects to create a "process image".
+
+So what is the file format like?
+The first thing the specification tells us is that since there are two uses for an ELF file (building a program and running a program), we get "parallel views of a file's contents".
+This is not very helpful.
+The figure that follows (1-1) is of particular interest.
+
+In the linking view, it shows us the ELF Header, followed by an optional Program Header Table (PHT), followed by n sections, and ending with a (mandatory) SHT.
+In the execution view (likely one we're interested in, since we're talking about executable files), we see an ELF Header, followed by the PHT, arbitrary amounts of "Segments" and ending with an optional SHT.
+This doesn't seem at all related to what we were talking about, but I believe herein lies the source of the myth of `e_shoff + (e_shentsize * e_shnum)`.
+After all, the figures show that the SHT is *always last*, and does not show anything else.
+Let us keep reading however.
+
+The text goes on to tell us that the header resides at the beginning and holds a "road map" describing the file's organization.
+Sections hold the bulk of object file information for the *linking* view (such as instructions, data, symbol table...).
+There are also segments and the program execution view of the file.
+A PHT, if there, then tells us how to create a process image.
+Files used to build a process image (i.e executable files!) must have a PHT, while relocatable files (e.g `.o`) do not need one.
+The SHT holds information on the file's sections, but is only obligatory in files used for linking.
+
+If we stopped here, we might be convinced, then, that an executable file will always end in either the SHT or a Section.
+It's what the graphic showed, and the text doesn't seem to contradict it too much.
+This, however, would be a mistake.
+What immediately follows is this note, verbatim:
+[quote]
+____
+Although the figure shows the program header table immediately after the ELF header, and the section header table following the sections, actual files may differ.
+Moreover, sections and segments have no specified order.
+Only the ELF header has a fixed position in the file.
+____
+Oh.
+
+More hints come later.
+For instance, the definition of `e_shnum`: "If a file has no section header table, `e_shnum` holds the value zero".
+
+If we go quite a bit further, we can find out more about the Program Header as well.
+In Book 1 chapter 2, we finally get a proper definition:
+[quote]
+____
+An executable or shared object file's program header table is an array of structures, each describing a segment or other information the system needs to prepare the program for execution.
+An object file segment contains one or more sections.
+Program headers are meaningful only for executable and shared object files.
+A file specifies its own program header size with the ELF header's e_phentsize and  e_phnum members [see "ELF Header'' in Chapter 1].
+____
+
+Note that they use the word "Section" to mention parts of the ELF file referred to by the SHT, and "Segment" for those referred by the PHT.
+It appears that later down the line (this document was published before Y2K) "Segment" became commonly known as "Prog" or "Program".
+
+=== So what's the formula?
+So what then, is the true answer to our query?
+We now know that, actually, an ELF file has the following 5 components:
+
+. The ELF (File) Header (EFH)
+. The Program Header Table (PHT)
+. The Section Header Table (SHT)
+. Sections
+. Segments (Programs)
+
+If we dig in, we can find the exact way to determine the endpoint of each.
+The EFH's end point is quite simply `e_shsize`, because it is guaranteed to be first.
+The PHT's end point is `e_phoff + (e_phentsize * e_phnum)` - the start of the PHT plus all of its contents.
+The SHT's end point is our famous formula: `e_shoff + (e_shentsize * e_shnum)`, same as above.
+The end point of any given section is `sh_offset + sh_size` (though this comes with a catch, if the type is `SHT_NOBITS` the size is misleading; which is why many libraries allow you to calculate the "FileSize" of a section).
+The end point of any given program is `p_offset + p_filesz` (thankfully, this actually always corresponds to the true size on disk).
+
+Since any of these can be the last, we need to start by finding the largest offset.
+So first we take `e_phoff` and `e_shoff`.
+Then, we iterate over their entries (if they exist), and find the section and program with the highest offset.
+Then we determine which offset of these 4 that we have is the greatest, and add the second component (as per above) to whichever one it ends up being.
+
+== Ok, but does this ever happen?
+Yes, actually.
+
+Have you ever heard of "link:https://upx.github.io/[upx]"?
+The way it works is it compresses a binary, and then concatenates it after a stub of itself.
+The stub can be analyzed.
+At the time of writing, this stub does not contain an SHT (`e_shnum` is zero).
+The "conventional wisdom" then fails, even in the special case.
+
+Then, we have go binaries.
+At the time of writing, I have an unstripped go binary whose final component is a `.strtab`.
+It could have easily been a program as well, of course (see above).
+
+In short, this not only can happen, but it does happen.
+
+== The Birth of an Internet Myth
+I believe that it takes two things for an internet myth to be born.
+First, the subject has to be something with the air of being inaccessible.
+Second, the proposed solution (the myth) must succeed often enough for it to be convincing.
+Someone that only looks at the given solution, tries it, and sees it work will then become a carrier.
+
+Is that the case here?
+Well, ELF internals are certainly seen as fairly inaccessible.
+I doubt very many people actually came to the true format specification.
+Those that did, likely stopped at the graphic - not reading further (even a single page) since they had gotten their answer.
+
+So why does it appear to work fairly often?
+The answer may surprise you.
+GNU Binutils' strip(1) appears to relocated the SHT to be the last part of an ELF file.
+Whether this is intentional or a coincidence would require reading its sources, which I'm not up for right now.
+As such, if you always ran your tests against something that went through a stripping, it is very likely that it would work often enough to be convincing.
+
+So it is a combination of the following factors:
+
+* it's information that appears inaccessible
+* if you do go and look it up in a hurry, it is very likely for you to make a faulty conclusion, due to the bad organization of the graphic
+* if you make the assumption that the graphic is correct, it will work by accident often enough to be convincing
+
+But now you know better, right?
