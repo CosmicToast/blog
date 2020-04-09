@@ -1,0 +1,175 @@
+= MySQL Clustering: 2020 Edition
+Chloe Kudryavtsev <toast@toast.cafe>
+v1.0, April 8, 2020
+:page-tags: sys
+
+Database servers are traditionally a pain.
+None of that has changed.
+However, some things are somewhat less of a pain than they were before.
+Getting MySQL to cluster is one of those things, though it involves deep, badly-documented magic.
+This post is intended for the average system administrator that knows their way around UNIX, but not necessarily DB systems.
+I won't spend time explaining things like how to download and verify a file, but will try to explain what's going on behind the curtain.
+
+== Prior Work
+First, let's talk about how it used to be.
+Let's talk about galera cluster.
+
+Galera cluster is not a part of upstream mysql.
+A patch it required did become a part of MariaDB 10.1, but that doesn't apply to the other components necessarily.
+You would configure approximately ~7 variables (including funny things like telling it to use rsync), custom-assign addresses, in config files.
+Then you would use a custom command `galera_new_cluster` on the bootstrap node.
+This would show a bunch of variables (starting with `wsrep`) that you can use to diagnose anything going wrong.
+Then you start the other nodes, and call it there.
+Replication data was unencrypted.
+
+== MySQL Shell
+This isn't about `mysql(1)`.
+This is actually about `mysqlsh(1)`.
+It's a new tool by upstream MySQL, not present in MariaDB (which has deviated now) or anything else.
+And it is made of pure black magic.
+
+It connects to a MySQL server over either the classic (3306) or X (33060) protocol, and presents a prompt.
+This prompt comes in three styles:
+
+. JavaScript (default)
+. Python
+. SQL
+
+The SQL prompt (accessible with `\sql`) is basically `mysql(1)` with tab-completion.
+We are interested in the JavaScript prompt, which allows performing administrative tasks over those protocols.
+Basically all of our interactions with mysql should likely be over MySQL Shell.
+
+== The Clustering
+First up, we need to install and have MySQL set up on all of our nodes (3, for the purposes of demonstration).
+We'll call them "s1", "s2" and "s3".
+This MySQL installation has to be MySQL, not MariaDB, and *should* be of version 8.0.17 or higher.
+Then, create an administration user (doesn't need to be root, but give it GRANT OPTION and such, I'll call it "admin").
+Once it's set up and started, we can begin.
+
+=== Configuring Instances
+From any host that can access port 3306 of all our nodes, we can start mysqlsh.
+We'll connect to node 1, though we won't use that connection right away.
+`mysqlsh admin@s1:3306`
+
+This drops us into the JavaScript console.
+Now, MySQL's clustering feature (called "InnoDB Cluster") is based on MySQL's Group Replication feature.
+This feature has prerequisites, but we don't have to worry about those.
+Recent MySQL has support for setting options programmatically and having them persist in the data directory.
+The options needed can change from version to version, and that's where MySQL Shell will help us.
+
+There is a global variable in the JS prompt called "dba".
+As you might imagine, it's meant to help with DataBase Administration.
+It has just the link:https://dev.mysql.com/doc/dev/mysqlsh-api-javascript/8.0/classmysqlsh_1_1dba_1_1_dba.html#af4510380474d531a9fb775693e94eaac[function]:
+`dba.configureInstance('admin@s1:3306')`
+
+This should tell you that there are some missing options, and offer to make them for you, after asking for a password.
+If you go through it, it'll stop and be happy.
+By default it will create a cluster administrator account for you.
+This is mostly fine, but if you want to have more control, you can set it yourself, like this: `dba.configureInstance('admin@s1:3306', {clusterAdmin: "'innodb'@'%'"})`.
+Repeat this for every instance.
+
+Now, all of our nodes are ready to become cluster members.
+
+=== Creating the Cluster
+You thought there was more to it?
+As much as the documentation tries to convince you otherwise, we're already almost done!
+
+This is the part where we use that connection to a specific node.
+If you just started `mysqlsh` without other arguments, use `\connect` to change that - `\connect admin@s1:3306`.
+This node will be our bootstrap node.
+
+Now we can create the cluster, with the dedicated link:https://dev.mysql.com/doc/dev/mysqlsh-api-javascript/8.0/classmysqlsh_1_1dba_1_1_dba.html#a12f040129a2c4c301392dd69611da0c8[function]!
+`var cluster = dba.createCluster("myCluster")`.
+You can call it whatever you want though.
+There are also some options you might potentially want to use (they work the same way as in the example from the last section).
+These options are:
+
+`ipWhitelist`:: set this if you know exactly what IPs your instances will have.
+It defaults to "AUTOMATIC", which just checks what private IPs your server has.
+An example value would be "192.168.1.0/24,10.0.0.1".
+`memberSslMode`:: set this if you want to *disable* SSL communications between the nodes for replication purposes.
+The defaults are to autodetect, and with the MySQL version I recommended it should automatically work.
+You can check in the status screen later.
+`multiPrimary`:: A boolean to enable multi-primary mode.
+Set to true if you REALLY REALLY know what you're doing.
+
+What this does in the background is a couple of things.
+It bootstraps the cluster, sure, but it *also* creates metadata stuff (you can later analyze what databases are present) that will be very important for MySQL Router.
+
+=== Adding More Nodes
+Now, we can add additional nodes.
+This is done using, you guessed it, yet another link:https://dev.mysql.com/doc/dev/mysqlsh-api-javascript/8.0/classmysqlsh_1_1dba_1_1_cluster.html#a92471821375405214215958ee924087f[function]!
+This function needs to be run against the `cluster` object we created in the previous section.
+`cluster.addInstance("admin@s2:3306")`, and `admin@s3:3306`.
+
+NOTE: If you took a break and need to get it back, you can call `var cluster = dba.getCluster()` while connected to any node that is a member (well, just our seed node right now).
+
+The only relevant option here is `ipWhitelist`.
+Same story as when we created the cluster.
+It will ask you for a replication method.
+I strongly recommend just using the default ("Clone") method, *especially* if you're bootstrapping a *new* cluster.
+
+=== Verifying Cluster Status
+Well, actually, we're done now.
+You can check your cluster's status using `cluster.status()`.
+
+One important thing to note here is that some nodes are R/O, while one is R/W.
+This is because we are in what is called "single-primary" mode that MySQL InnoDB Cluster defaults to.
+In single primary mode, there is one node that accepts writes, while the other nodes are readers.
+They communicate using paxos to check up on one another, automatically recover from tolerable failures, and elect new primaries.
+
+=== MySQL Router
+You might then ask - how would the clients function?
+The clients clearly need some information to know where to send their writes (at the very least).
+This is where MySQL Router comes in.
+It is a thin application that knows how to read the InnoDB Cluster metadata, and then proxy requests over.
+MySQL recommends simply deploying it on application servers, to minimize latency.
+This is what the process looks like in general, though.
+
+Technically, MySQL Router doesn't really *need* to talk to InnoDB - it can just perform the job of a simple reverse proxy.
+You can look at the docs on that link:https://dev.mysql.com/doc/mysql-router/8.0/en/mysql-router-deploying-basic-routing.html[here].
+However, since we *have* an InnoDB Cluster now, it's much easier.
+
+Once it is installed, we simply need to run `mysqlrouter --bootstrap admin@s1:3306 --user mysqlrouter` (assuming "mysqlrouter" is the user that will run it).
+You can examine the configuration file it creates for itself (under `/etc/mysqlrouter`, most likely).
+There are a few options that may be interesting to us.
+By default, `mysqlrouter` will create an unprivileged account for itself that it will remember, but we can use a specific one using `--account` if we have something particular in mind.
+
+NOTE: the `--account` option is only available in MySQL Router version 8.0.19 and above.
+
+Once it's set up, we now have 4 ports.
+`6446` and `6447` are the classic protocol ports, while `64460` and `64470` are the X protocol ports.
+The `60?` ports are used for reads *and* writes, which means they're limited to a single destination server in single primary mode.
+The `70?` ports are used for reads only, and will route to all of the possible (online) servers.
+
+You can also see it as a metadata consumer in `cluster.status()`!
+
+== Debugging
+A few things can go wrong during this process, but most of them should be fairly obvious.
+For instance, if the error message says "s1 is 127.0.0.1", your distro has deployed itself in such a way that it refers to itself as localhost.
+This is great and all, but you should probably remove that for the purposes of initial setup.
+Another possible issue is an issue with IPs (e.g if you don't use "%" as the hostname, while not fully realizing how the traffic might flow).
+
+== Multi-Primary Mode
+I mentioned it before, so one may be wondering what this mode is.
+The short version is that it makes all nodes equivalent - they can all be used for writes - they are all primaries.
+There are several tradeoffs though.
+
+The first, and lesser one, is that the cluster now becomes eventually (instead of strongly) consistent.
+I am of the opinion that for the absolute vast majority of cases, this is fine (and even desirable), though.
+Still, if it's a problem, the absolute newest versions of MySQL have settings to increase the consistency guarantees, at the expense of performance.
+
+The second problem is that *multiple features are no longer valid*.
+For example, you can no longer have foreign key constraints that cascade.
+The subject is fairly lengthy, so refer to the link:https://dev.mysql.com/doc/refman/8.0/en/group-replication-limitations.html[docs] as to what limitations are in place.
+
+If you're *certain* that you want to use multi-primary mode, you can just switch to it with this link:https://dev.mysql.com/doc/dev/mysqlsh-api-javascript/8.0/classmysqlsh_1_1dba_1_1_cluster.html#ab36ba1da480e88b4e75647bf7a25cc9a[function].
+`cluster.switchToMultiPrimaryMode()`
+
+== Recovering From Complete Outage
+It happens to everyone.
+Lightning struck down the whole city's power supply for 4 days straight or something.
+Now your cluster can't recover, since it went fully down.
+Just connect to one of the nodes with MySQL Shell, and then call this link:https://dev.mysql.com/doc/dev/mysqlsh-api-javascript/8.0/classmysqlsh_1_1dba_1_1_dba.html#a64e1c660242082f000a6e0eb60140769[function].
+Yes, there is literally a function you use like this: `dba.rebootClusterFromCompleteOutage()`.
+No, really.
