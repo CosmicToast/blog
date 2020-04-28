@@ -24,7 +24,7 @@
     <aside>
       <p>Posted in
         <%= link_to "#{current_article.date.year}", blog_year_path(current_article.date.year) %>
-        <% if current_article.tags %>
+        <% if ! current_article.tags.empty? %>
         with tags<% current_article.tags.each do |tag| %>
         <%= link_to "#{tag}", tag_path(tag) %><% end %><% end %>.
       </p>
