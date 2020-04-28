@@ -1,0 +1,305 @@
+= All Your Base Are Belong to Us
+Chloe Kudryavtsev <toast@toast.cafe>
+v1.0, April 27, 2020
+
+We, as a society, should move to base 16 for our numbering system.
+Here is why.
+
+As a sidenote, the rest of this article will be written using base 16.
+For our friends that are only familiar with base 10, base 10 formatted helpers will be included.
+For example, like so - we're talking about base 10 (0d16), as opposed to base a (0d10).
+
+== History
+Everyone roughly knows what the numbering system - it's 1 through a (0d10), with stuff following it, right?
+Unfortunately, it gets a bit more complicated than that.
+In order to really understand what a numbering system is, and how we arrived at our modern one, let's examine the history of counting.
+
+=== The Tally
+Counting, in some capacity, has been important throughout all of human history.
+How many berries do we have?
+How many people do we have for the berries in question?
+How many cows do I trade for a given object?
+This basic counting is called "the tally".
+
+The original version of the tally is to represent each one object with one marking.
+For example, you could carve out lines, or punch dots into something.
+One line per cow.
+
+This, however, is not very useful.
+Performing any basic mathematical operation besides addition is difficult.
+Further, you cannot easily actually get the resulting count - you must count the full number in your head.
+Without having a numbering system to do that, it becomes even more difficult, and you might simply perform subtractions and comparisons.
+
+So we meet the two limitations, or perhaps, the two things that more sophisticated numbering systems can provide:
+
+. easy determination of the resulting count
+. easy mathematical operations (of any sort, but traditionally multiplication)
+
+The tally system, of course, had a trick up its sleeve: special markings.
+The one you, dear reader, might be most familiar with is crossing 4 tallies with the 5th - making groups of 5.
+However, this is not the only grouping quantity humans have historically used: the smallest being groups of 3, while the largest (the babylonian system) using groups of 3c (0d60, look up cuneiform!).
+The bigger the group, the easier it was to tell a given number at a glance - by simply summing up all of the component tallies.
+
+=== Tally Shortcuts
+If you want to represent something like 1000 (0d4096) in a tally, you're going to run into trouble.
+Even the babylonian groupings of 3c (0d60) are grossly insufficient - you'd need more than 44 (0d68) total tally groups to do it!
+Once you reach a number that high, there is no chance of actually telling the resulting number in place at a glance.
+
+To combat this, various civilizations created "shortcut" numbers to represent various quantities.
+Let us consider the roman numeral system (which operates under groupings of 5) as one such example.
+V is a shorthand for 5, X for a (0d10), L for 32 (0d50), C for 64 (0d100), D for 1f4 (0d500) and so on.
+This is still, however, just a sophisticated tally system.
+
+Consider the number 1000 (0d4096) - in roman numerals, it becomes MMMMXCVI.
+M is 3e8 (0d1000), X is a (0d10), C is 64 (0d100), V is 5, I is 1.
+We get our result by adding them together, unless one is out of turn, in which case it is substracted instead.
+So we have MMMM: 3e8 (0d1000) * 4 = fa0 (0d4000) (more on how to do this in native hex later).
+X is out of turn, so it is substracted from C; XC: 64 (0d100) - a = 5a (0d90).
+V is 5 and I is 1.
+As a result, we can add all of our tally marks together: fa0 + 5a + 5 + 1 = 1000 (0d4096).
+
+You might have noticed that, to one unfamiliar, the process is fairly arduous relative to our modern system.
+The disadvantages are clear: as you want to represent bigger and bigger numbers, you must learn ever new symbols.
+Further, you once again lose easy recognition of particularly large numbers, unless you add even more symbols to the already overloaded set.
+Finally, operations other than addition and subtraction become arduous.
+
+=== Place Notation
+There is, however, another method.
+One that strikes a balance between how many symbols you must memorize, as well as make mathematical operations easier.
+This method is called place notation.
+Note how in the basic tally system, you can switch around two groups of tallies without any ill effect on the number in question.
+In place notation, that is not so.
+In place notation, the place (position) of a given number becomes significant (whether it be right to left or left to right).
+Specifically, in right-to-left place notation (which is what we use!), the number xyz would be equal to the addition `x * b^2` + `y * b^1` + `z * b^0`, where x, y and z are less than b, and b is known as the "base" number.
+Of course, I used 0, 1 and 2 there to show off the concept, but like x, y and z, there is no guarantee that "1" has any special meaning as a symbol.
+
+The first civilization (that I am aware of) to have used this system are the Mayans.
+Their base was 14 (0d20)!
+
+=== Historical Conclusion
+We ended up where we are, with our base a (0d10) positional notation system.
+Why did we change?
+Because the Greeks happened to have borrowed parts of the Indian counting system (which was base a (0d10))), and happened to have popularized the concept, as well as the concept of an alphabet (alpha and beta, the first two letters in theirs).
+
+Each individual small change over time, though, happened for a different reason - a practical reason.
+We added tally shortcuts so that we may represent larger numbers and identify them at a glance.
+And we added place notation to solidify this, while limiting the amount of symbols one must memorize to use the system effectively, and improve our capacity for mathematical operations (more on this later).
+But we may have never needed any of these - the true underlying reason is that the technology available to us evolved.
+If we only ever needed to count to 10 (0d16), we wouldn't have ever made tally shortcuts.
+If we didn't need to count to obscene numbers, or perform calculations in an easier fashion, we would not have switched to place notation.
+
+In short, our counting system evolves with our need to count in a particular way.
+It evolves with the new desire to do particular things.
+
+It is also important to remember, the numbering system represents numbers, but does not change them: 10 (0d16) and 0d16 may be written differently, but represent the same number - it does not change.
+
+=== P.S.: You Already Use Non-Base-A Systems
+Have you ever wondered why there are 3c (0d60) seconds in a minute, and 3c (0d60) minutes in an hour?
+Or perhaps why there are 168 (0d360) degrees in a circle?
+These numbers seem fairly arbitrary in a base a (0d10) system, but they are actually carryovers from the system of the babylonians, which used groups of 60.
+If we convert the babilonian system into base 60, we notice that 3c would be "10", and 168 would be "100" - much better.
+
+Similarly, computers are based on a base 2 system, with only 2 values.
+This is done for practical reasons (semiconductors), but has interesting consequences.
+We'll get into that later though.
+
+== Base 10 (0d16)
+Many people in the modern day assume that the number a, since that is what we came to, is thus of particular importance.
+The metric system subdivides things into groups of a (0d10), 64 (0d100), 3e8 (0d1000) and so on.
+The truth, however, is that it could easily be dividing them into 10 (0d16), 100 (0d256) and 1000 (0d4096).
+
+A common complaint is that this would be awkward, after all, 0d500 in base 10 (0d16) becomes 1f4 - how messy.
+The truth however, is a bit more complicated.
+10 (0d16) * 10 (0d16) is, in fact, 100 (0d256).
+It is the same as complaining that having 168 (0d360) degrees in a circle is similarly awkward - it is simply a different system.
+
+Let us then recall the things that make a numbering system good:
+
+* the ability to quickly recognize large numbers
+* the amount (preferably lower!) of symbols one needs to remember to use the system effectively
+* the ease of mathematical operations
+* the integration with important societal technology
+
+Let us tackle each of these in turn.
+
+=== Large Numbers
+It's difficult to intuitively compare how good a given system is a this.
+One common approach is to define the biggest number that can be represented using 4 positional symbols.
+Let us do this, then.
+
+For base 10 (0d16) this number is ffff (0d65535).
+For base a (0d10) this number is 270f (0d9999), more than 6 times smaller!
+Other popular bases that have been proposed are base 8 and base c, but they're a bit out of scope right now.
+
+Needless to say, base 10 (0d16) can represent bigger numbers faster.
+In a world where a billion (3b9aca00 (0d1000000000)) is not too uncommon a number to discuss, this is not insignificant.
+It's not trivial to comprehend either of these, really, so much so that we created a new notation to deal: the scientific notation (e).
+
+=== Number of Symbols
+This one is fairly simple - the base is in fact the number of symbols to remember.
+In base 10 (0d16) there are... 10 (0d16) symbols.
+In base a (0d10) there are a symbols.
+
+One might assume, then, that base a (0d10) has an advantage.
+After all, it has fewer symbols.
+However, if that held, then base 2 would be the best counting system - after all, it only has two symbols!
+This is, of course, not the case.
+
+In base 2, you can only represent f (0d15) using 4 symbols (1111).
+Even small numbers become quickly unrecognizable.
+Not only that, but operations become rather complex as well (more on this soon, I promise, it's next).
+
+In short, we must select a balance between number of symbols and large number representation.
+There aren't very many basic utilities we have at our disposal to select these.
+Here are a few relative constants, as well as the elaboration upon them:
+
+Short term memory capacity (~7)::
+Not useful because we're not limited by our short term memory for these symbols - we are expected to memorize them, and we do not gain information about them when we see a number.
+
+Number of fingers (a, 0d10)::
+This is likely the reason why base a (0d10) became popular, however consider also the following couple.
+
+Number of finger knuckles, excluding thumb (18, 0d24)::
+Count them yourself! It's true!
+
+Number of finger knuckles, including thumb (1c, 0d28)::
+Interesting quantities, really.
+
+Number of finger knuckles, excluding thumb + number of fingertips (20, 0d32)::
+Notice that this means that *each hand* has 10 (0d16) knuckles and fingertips!
+Keep this in mind, it'll become relevant soon!
+
+Number of finger knuckles, including thumb + number of fingertips (26, 0d38)::
+I think you're starting to get the idea. 
+
+In short, the question is rather moot.
+We are capable of remembering our alphabet, which contains 1a (0d26) symbols, so clearly it isn't all that big of a deal to remember 10 (0d16).
+
+=== Ease of Mathematical Operations
+Adding isn't really that hard in any of these systems.
+Neither is subtracting.
+You need only remember some small details to do either.
+Multiplication, on the other hand, is a whole other ordeal.
+
+First, let's talk about base a (0d10).
+Everyone knows that multiplication by 2, 5 and a (0d10) is easy.
+Why is this?
+
+As it turns out, in a multiplication table, it's extremely easy to perform operations (multiplication and division) on numbers that are a factor of the base.
+The factors of a (0d10) are 2 and 5, so there we go.
+Consequently, the more factors your base has, the easier it becomes to perform operations against.
+
+Let us then factor our options:
+8:: 2 and 4.
+A (0d10):: 2 and 5.
+C (0d12):: 2, 3, 4 and 6.
+10 (0d16):: 2, 4, 8.
+
+8 is thus a nice tradeoff against a (0d10) - it has the same amount of factors, but requires remembering fewer symbols.
+C (0d12) doubles the amount of factors of a (0d10), just for 2 extra symbols.
+Why then, do I prefer 10 (0d16)?
+This will be addressed in the next section.
+
+I strongly encourage the reader to write out a multiplication table themselves, and observing the rows and columns corresponding to each factor of a given system.
+Write it out in that system's notation too!
+I also recommend paying particularly close attention to the 4 in base 10 (0d16): after all, 4 * 4 is 10 (0d16)!
+This makes it have some very interesting properties.
+
+=== Integration With Important Technology
+One of the biggest inventions of all time is that of computers.
+They enabled communication and storage of knowledge unknown before them.
+They allow us to create things previously unthought of, like realistic depictions of impossible events.
+We can calculate incredible things rapidly.
+
+The ability to use a computer, to bend it to your will, is strongly correlated to the ability to do a great many other things.
+The reliance of some external party to provide a simplified tool to do basic operations, such as keeping track of accounting, is unacceptable.
+It is similarly unacceptable as being dependent on a plumber for opening your faucet, or a carpenter for nailing something to the floor.
+It is of great important to humanity to be able to wield these existing tools, and ideally to drop its reliance on external forces as a provisory of tools.
+(An exception is made for computers themselves, as fairly few people could make a high quality hammer, similarly few people can make their own computer from scratch;
+though any initiative to allow simpler computers to be created by the average person are obviously important and are to be encouraged.)
+
+This raises the question - what exactly is preventing people from being capable of using computers efficiently?
+Let us start by dropping aside societal factors
+(how society views computing as an extension of mathematics,
+spends large amounts of time telling people they won't be able to do anything,
+how newly introduced people believe programs must be illegible and perform editorial passes to make them less legible prior to publishing).
+People that do eventually become programmers often run into a new problem: pointers.
+
+A pointer is simply a representation of data that is somewhere else.
+Most computer languages are based upon the concept of the stack that you place copies of objects upon.
+However, if the function with such a stack wishes to modify the object (as in malloc, for instance), it would modify its own copy.
+So instead, we pass it a pointer - an offset in the memory pointing to where the true object is.
+A copy of that number remains simply that number, and as such in effect passes the object to be modified to the function.
+This itself is not a particularly difficult concept, so why do people stumble upon it?
+
+Computers, as we mentioned before, operate in base 2.
+However, these base 2 numbers are actually grouped into groups of 8 - octets (2^8), more commonly known as bytes.
+As such, in practice, computers will show you the actual representation of the data they store.
+Base 8, however, is not sufficiently large - we're talking about large numbers.
+Computers typically manipulate memory in blocks called "WORD".
+These are defined by the size of the registers in the CPU.
+In x86 (the predominant cpu architecture of our time) a word happened to be exactly 16 bits - two octets (2^16).
+It just so happens that we can modify this setup to work well under hex, which is much more display-friendly.
+2^16, after all, can be reformulated easily: 4^8, 16^4.
+And so, the hex notation - groupings of 4 digits of base 16 became common to represent word values.
+
+I believe that the trouble is actually in accessibility.
+When someone sees a printed value in hex, this is confusing - they are not used to it.
+Changing this to simply print the value in decimal makes it much more difficult to actually perform mathematical operations on the output (after all, base 10 (0d16) so neatly aligns to 2^16, while base a (0d10) does not).
+Further, this places the onus, the dependency, on the provider of the tool, once again.
+
+Not only this, but it may help to understand some "constants" that people usually just memorize, such as the number of possible ports: ffff (0d65535).
+Hopefully, where those constants come from doesn't need an explanation, now that you see one of them written out in base 10 (0d16).
+This however, isn't even limited to programmers.
+Consider, for instance, hexadecimal color notation - suddenly having a maximum value of ff (0d255) not makes intuitive sense, but can even be operated on by the artist.
+Many seemingly arbitrary quantities in many of the things we use on a regular basis become easy to understand and work with.
+
+In short, using base 10 (0d16), even if ever so slightly, liberates the potential tool-user and creator.
+It makes it easier to *truly* utilize one of the greatest tools of all time.
+Combined with all other advantages, the only thing truly keeping base a (0d10) around is the force of tradition, and misconceptions.
+
+Let us then, clear out some of these misconceptions.
+
+== Common Base 10 (0d16) Misconceptions
+People that have always (consciously) used a single system their whole lives often have some misconceptions.
+While I wish a simple reminder that the time of day (base 60, 12/24) is just another numbering system was sufficient, let's go over some common ones.
+
+Division is hard! We lose number 5!::
+But you gain the 4, which is so much more powerful.
+10/4 is 4.
+You did do the multiplication exercise, right?
+
+Ok, but division with a remainder is hard! How would you represent 0d0.5?!::
+1/2 is simply 10/2 /10: 0.8.
+
+How will we call things!? "Ten" is intuitive.::
+Morphologically, "ten" actually makes very little sense.
+We also have the incredible power to make new words, if we deem them necessary.
+
+All sorts of jubilees become awkward!::
+Do you consider the age of 12 (0d18) awkward?
+how about 15 (0d21) if you're American?
+There's nothing magical about any of these.
+You can celebrate whatever you want, however you want.
+Using base 10 (0d16) changes basically nothing.
+
+0d10 is a universal constant!::
+It just isn't.
+Firstly, the number represented by 0d10 exists in a void - it is functionally imaginary on its own - 0d10 of what?
+If the answer is "of fingers", refer to the section on the number of symbols above.
+Of course, most people are thinking about the metric system when they say this, but this is not universally-based either.
+The only universal constants that are available to us are the plank length (and derived measures) and the speed of light in vacuum.
+Meanwhile, the meter is originally meant to be one-tenmillionth of the distance from the equator to the north pole, along a meridian through Paris.
+Hardly universal, it was botched from the start, and redefined multiple times to partially align it to various measures.
+What is so special about 19304b.ba (0d1650763.73)?
+The new definition made in 1960 is the wavelength of the light produced by burning Krypton in a vacuum times that much, you know.
+What's so special about 11de784a (0d299792458)?
+The latest (1984) definition is the distance that light travels in a vacuum in 1/that-many seconds, as measured by an atomic clock.
+I could take any measurement system and define it in terms of any of these, but that would not grant any of them legitimacy.
+
+I don't like it!::
+Chances are, you don't like base a (0d10) either.
+You are simply used to it.
+You have used it your whole life.
+You most likely do not think about it, and it is that thoughtlessness in day to day operations that you like.
+As mentioned previously, moving to base 10 (0d16) would actually *improve* this aspect.
