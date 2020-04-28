@@ -96,8 +96,8 @@ It is also important to remember, the numbering system represents numbers, but d
 === P.S.: You Already Use Non-Base-A Systems
 Have you ever wondered why there are 3c (0d60) seconds in a minute, and 3c (0d60) minutes in an hour?
 Or perhaps why there are 168 (0d360) degrees in a circle?
-These numbers seem fairly arbitrary in a base a (0d10) system, but they are actually carryovers from the system of the babylonians, which used groups of 60.
-If we convert the babilonian system into base 60, we notice that 3c would be "10", and 168 would be "100" - much better.
+These numbers seem fairly arbitrary in a base a (0d10) system, but they are actually carryovers from the system of the babylonians, which used groups of 3c (0d60).
+If we convert the babylonian system into base 3c (0d60), we notice that 3c would be "10", and 168 would be "100" - much better.
 
 Similarly, computers are based on a base 2 system, with only 2 values.
 This is done for practical reasons (semiconductors), but has interesting consequences.
