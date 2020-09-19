@@ -6,6 +6,6 @@
 </div>
 
 ## Contact Details
-- Github: [@5paceToast](https://github.com/5paceToast)
+- Github: [@CosmicToast](https://github.com/CosmicToast)
 - Email: [toast@toast.cafe](mailto:toast@toast.cafe)
 - Twitter-like: [@toast@toast.cafe](https://toast.cafe/users/toast)
